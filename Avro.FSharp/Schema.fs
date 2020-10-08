@@ -32,7 +32,7 @@ let private enumSchemaConstructor () =
         let aliases = if aliases.Length > 0 then aliases |> Array.map (fun name -> SchemaName(name, "", "")) |> List else null
         ctr.Invoke([|name; aliases; List(symbols); null; null; SchemaNames(); null |]) :?> Schema
 
-let createEnumSchema : string array -> string array -> string -> Schema = enumSchemaConstructor() 
+let private createEnumSchema : string array -> string array -> string -> Schema = enumSchemaConstructor() 
 
 let private arraySchemaConstructor () =
 
@@ -46,7 +46,7 @@ let private arraySchemaConstructor () =
     fun (itemsSchema:Schema) ->
         ctr.Invoke([|itemsSchema; null|]) :?> Schema
 
-let createArraySchema : Schema -> Schema = arraySchemaConstructor() 
+let private createArraySchema : Schema -> Schema = arraySchemaConstructor() 
 
 let private mapSchemaConstructor () =
 
@@ -60,7 +60,7 @@ let private mapSchemaConstructor () =
     fun (itemsSchema:Schema) ->
         ctr.Invoke([|itemsSchema; null|]) :?> Schema
 
-let createMapSchema : Schema -> Schema = mapSchemaConstructor() 
+let private createMapSchema : Schema -> Schema = mapSchemaConstructor() 
 
 let private fieldConstructor () =
 
@@ -82,7 +82,7 @@ let private fieldConstructor () =
         let default' = if not (String.IsNullOrEmpty default') then JToken.Parse(default') else null
         ctr.Invoke([|schema; name; aliases; 0; null; default'; Field.SortOrder.ignore; null |]) :?> Field
 
-let createFieldSchema : string -> string array -> string -> Schema -> Field = fieldConstructor()
+let private createFieldSchema : string -> string array -> string -> Schema -> Field = fieldConstructor()
 
 let private recordSchemaConstructor () =
 
@@ -106,7 +106,7 @@ let private recordSchemaConstructor () =
         let aliases = if aliases.Length > 0 then aliases |> Array.map (fun name -> SchemaName(name, "", "")) |> List else null
         ctr.Invoke([|Schema.Type.Record; name; aliases; null; fields; false; null; null; SchemaNames(); null |]) :?> Schema
 
-let createRecordSchema : string -> string array -> List<Field>  -> Schema = recordSchemaConstructor() 
+let private createRecordSchema : string -> string array -> List<Field>  -> Schema = recordSchemaConstructor() 
 
 let private unionSchemaConstructor () =
 
@@ -120,7 +120,7 @@ let private unionSchemaConstructor () =
     fun (schemas:Schema list) ->
         ctr.Invoke([|List<Schema>(schemas); null|]) :?> Schema
 
-let createUnionSchema : Schema list -> Schema = unionSchemaConstructor() 
+let private createUnionSchema : Schema list -> Schema = unionSchemaConstructor() 
 
 let private logicalSchemaConstructor () =
 
@@ -135,7 +135,7 @@ let private logicalSchemaConstructor () =
     fun (baseSchema:Schema) (logicalTypeName:string ) (props:PropertyMap) ->
         ctr.Invoke([|baseSchema; logicalTypeName; props|]) :?> Schema
 
-let createLogicalSchema : Schema -> string -> PropertyMap -> Schema = logicalSchemaConstructor() 
+let private createLogicalSchema : Schema -> string -> PropertyMap -> Schema = logicalSchemaConstructor() 
 
 let private bytesSchema = primitive "bytes"
 let private stringSchema = primitive "string"
@@ -145,19 +145,19 @@ let private longSchema = primitive "long"
 let private floatSchema = primitive "float"
 let private doubleSchema = primitive "double"
 
-let genDecimalSchema pecision scale : Schema = 
+let private createDecimalSchema pecision scale : Schema = 
     let props = PropertyMap()
     props.Set("precision", pecision.ToString())
     props.Set("scale", scale.ToString())
     createLogicalSchema bytesSchema "decimal" props
 
-let decimalSchema : Schema = genDecimalSchema 29 14
+let private  decimalSchema : Schema = createDecimalSchema 29 14
 
-let uuidSchema : Schema = 
+let private uuidSchema : Schema = 
     createLogicalSchema stringSchema "uuid" null
 
 
-let (|AsEnumerable|_|) (type':Type) =
+let private (|AsEnumerable|_|) (type':Type) =
     type'.GetInterfaces()
     |> Array.tryFind (fun it -> it.IsGenericType && it.GetGenericTypeDefinition() = typedefof<IEnumerable<_>>)
 
@@ -180,13 +180,13 @@ let private splitResults<'Tag> (results:('Tag*Result<Schema,SchemaError>) array)
         | Error err -> okeys, (err :: errors)
         ) results ([],[])
 
-let getOrCreate (cache:Dictionary<string,Schema>) creator name =
+let private getOrCreate (cache:Dictionary<string,Schema>) creator name =
     match cache.TryGetValue name with
     | true, schema -> Ok schema
     | false, _ -> 
         creator name |> Result.map (fun schema -> cache.[name] <- schema; schema)
 
-let getAliases (type':Type) =
+let private getAliases (type':Type) =
     match type'.GetCustomAttribute(typeof<Annotations.AliasesAttribute>) with 
     | :? Annotations.AliasesAttribute as attr -> attr.Aliases
     | _ -> [||]
@@ -238,7 +238,7 @@ and private genRecordSchema
         |> Array.map (fun fi -> 
             let schema = 
                 match fi.Type with
-                | t when t = typeof<decimal> && fi.Scale.IsSome -> genDecimalSchema 29 fi.Scale.Value |> Ok
+                | t when t = typeof<decimal> && fi.Scale.IsSome -> createDecimalSchema 29 fi.Scale.Value |> Ok
                 | _ -> genSchema cache fi.Type
             fi, schema)
         |> splitResults
