@@ -2,7 +2,6 @@ module Foo.Bar
 
 open Avro.FSharp.Annotations
 
-type Price = Price of decimal
 
 type TestState =
     | Red = 3
@@ -15,17 +14,45 @@ type SimpleRecord = {
     Version : int64
 }
 
+type HierarchyRecord = {
+    Title: string
+    Details: SimpleRecord
+    IsProcessed: bool
+}
+
+type Price = Price of decimal
+
 type ItemRecord = {
     Id : int
     Name : string
     Price : Price
 }
 
-type HierarchyRecord = {
-    Title: string
-    Details: SimpleRecord
-    IsProcessed: bool
+type RecordWithId = {
+    Id : int
+}
 
+[<Aliases[|"Foo.Bar.RecordWithId"|]>] 
+type RecordWithNewId = {
+    Id : int
+    //[<DefaultValue("null")>]
+    NewId: int option
+}
+
+[<Aliases[|"Foo.Bar.RecordWithId"|]>] 
+type RecordWithNewField = {
+    Id : int
+    [<DefaultValue(""" "Hello" """)>]
+    NewField: string
+}
+
+type RecordWithOption = {
+    Id : int
+    Id2 : int option
+}
+
+type GenericRecord<'T> = {
+    Value : 'T
 }
 
 type BinaryTree =

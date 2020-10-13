@@ -10,6 +10,8 @@ open Foo.Bar
 let expectSchemasEqual (actual:Schema) (expected:Schema) =
     Expect.equal "Schemas should be equal" (expected.ToString()) (actual.ToString())
 
+let generateSchema = generateSchema [||]
+
 [<Tests>]
 let primitiveTests =
     testList "Primitive" [
@@ -24,19 +26,18 @@ let primitiveTests =
         ]
         for typeName,type' in pairs ->
             test typeName {
-                generateSchema type'
+                generateSchema type' 
                 |> Expect.wantOk "Schema should be created"
                 |> expectSchemasEqual <| PrimitiveSchema.NewInstance(typeName)
             }
     ]
     |> testLabel "Schema"
 
-
 [<Tests>]
 let enumTests =
     testList "Enum" [
         test "TestState" {
-            generateSchema typeof<TestState>
+            generateSchema typeof<TestState> 
             |> Expect.wantOk "Schema should be created"
             |> expectSchemasEqual <| Schema.Parse ("""{"type": "enum", "name": "Foo.Bar.TestState", "symbols": ["Red", "Yellow", "Green"]}""")
         }
@@ -114,16 +115,11 @@ let recordTests =
                 ]                
             }""")
         }
-        test "Option" {
-            generateSchema typeof<Option<float>>
-            |> Expect.wantOk "Schema should be created"
-            |> expectSchemasEqual <| Schema.Parse ("""[
-                    {"type":"record","name":"None","namespace":"Microsoft.FSharp.Core.FSharpOption_Of_System_Double","fields":[]},
-                    {"type":"record","name":"Some","namespace":"Microsoft.FSharp.Core.FSharpOption_Of_System_Double","fields":[
-                        {"name":"Value","type":"double"}
-                    ]}
-                ]""")
-        }
+    ]|> testLabel "Schema"    
+
+[<Tests>]
+let unionTests =
+    testList "Union" [
         test "Result" {
             generateSchema typeof<Result<int64,string>>
             |> Expect.wantOk "Schema should be created"
@@ -160,6 +156,7 @@ let recordTests =
                     }
                 ]}""")
         }
+
     ]|> testLabel "Schema"    
 
 [<Tests>]
@@ -180,6 +177,41 @@ let tupleTests =
     ]|> testLabel "Schema"    
 
 [<Tests>]
+let optionTests =
+    testList "Nullable" [
+        test "Option" {
+            generateSchema typeof<Option<float>>
+            |> Expect.wantOk "Schema should be created"
+            |> expectSchemasEqual <| Schema.Parse ("""["null","double"]""")
+        }
+        test "Option in a Record" {
+            generateSchema typeof<RecordWithOption>
+            |> Expect.wantOk "Schema should be created"
+            |> expectSchemasEqual <| Schema.Parse ("""
+                {
+                    "type":"record",
+                    "name":"Foo.Bar.RecordWithOption",
+                    "fields":[
+                        {"name":"Id","type":"int"},
+                        {"name":"Id2","type":["null","int"],"default":null}
+                    ]
+                }""")
+        }
+        test "Record<Option>" {
+            generateSchema typeof<GenericRecord<Option<string>>>
+            |> Expect.wantOk "Schema should be created"
+            |> expectSchemasEqual <| Schema.Parse ("""
+                {
+                    "type":"record",
+                    "name":"Foo.Bar.GenericRecord_Of_Nullable_Of_System_String",
+                    "fields":[
+                        {"name":"Value","type":["null","string"],"default":null}
+                    ]
+                }""")
+        }
+    ]|> testLabel "Schema"    
+
+[<Tests>]
 let logicalTypesTests =
     testList "LogicalTypes" [
         test "Decimal" {
@@ -187,10 +219,10 @@ let logicalTypesTests =
             |> Expect.wantOk "Schema should be created"
             |> expectSchemasEqual <| Schema.Parse ("""{"type": "bytes", "logicalType": "decimal", "precision": 29, "scale": 14}""")
         }
-        test "UIID" {
+        test "GUID" {
             generateSchema typeof<System.Guid>
             |> Expect.wantOk "Schema should be created"
-            |> expectSchemasEqual <| Schema.Parse ("""{"type": "string", "logicalType": "uuid"}""")
+            |> expectSchemasEqual <| Schema.Parse ("""{"type": "fixed", "name": "guid", "size": 16}""")
         }
         test "DateTime" {
             generateSchema typeof<System.DateTime>
@@ -211,6 +243,11 @@ let logicalTypesTests =
             generateSchema typeof<System.Uri>
             |> Expect.wantOk "Schema should be created"
             |> expectSchemasEqual <| Schema.Parse ("""{"type": "string"}""")
+        }
+        test "UriInGenericRecord" {
+            generateSchema typeof<GenericRecord<System.Uri>>
+            |> Expect.wantOk "Schema should be created"
+            |> expectSchemasEqual <| Schema.Parse ("""{"type":"record","name":"Foo.Bar.GenericRecord_Of_System_Uri","fields":[{"name":"Value","type":"string"}]}""")
         }
     ]|> testLabel "Schema"    
 

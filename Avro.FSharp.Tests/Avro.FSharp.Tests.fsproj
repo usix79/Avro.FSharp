@@ -10,6 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TestDomain.fs" />
+    <Compile Include="SerdeTests.fs" />
     <Compile Include="SchemaTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>

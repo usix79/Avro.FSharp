@@ -6,6 +6,10 @@
     <ProjectReference Include="..\Avro.FSharp.Annotations\Avro.FSharp.Annotations.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SchemaReflector.fs" />
+    <Compile Include="Reader.fs" />
+    <Compile Include="Writer.fs" />
+    <Compile Include="CustomRule.fs" />
     <Compile Include="Schema.fs" />
   </ItemGroup>
   <ItemGroup>
