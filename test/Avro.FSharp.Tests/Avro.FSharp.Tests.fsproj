@@ -5,8 +5,7 @@
     <GenerateProgramFile>false</GenerateProgramFile>    
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Avro.FSharp\Avro.FSharp.fsproj" />
-    <ProjectReference Include="..\Avro.FSharp.Annotations\Avro.FSharp.Annotations.fsproj" />
+    <ProjectReference Include="..\..\src\Avro.FSharp\Avro.FSharp.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TestDomain.fs" />

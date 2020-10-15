@@ -59,20 +59,27 @@ type BinaryTree =
     | Leaf of value:string
     | Node of left: BinaryTree * right: BinaryTree
 
+type PriceRecord = {
+    Id : int
+    Caption: string
+    [<Scale 3>]
+    Price : decimal
+}
+
 
 type OldRecord = {
     Id : int
     Title: string
 }
 
+
 [<Aliases[|"Foo.Bar.OldRecord"|]>] 
 type NewRecord = {
-    [<DefaultValue "42">]
     Id : int
     [<Aliases [|"Title"; "Cap"|]>] 
     Caption: string
-    [<Scale 3>]
-    Price : decimal
+    [<DefaultValue """ "Not Yet Described" """>]
+    Description : string
 }
 
 [<Aliases[|"Foo.Bar.TestState"|]>] 

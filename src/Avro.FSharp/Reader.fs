@@ -42,6 +42,7 @@ type FSharpReader<'T>(writerSchema:Schema, readerSchema:Schema, reflector:Schema
             match obj with
             | null ->
                 let rf = recordSchema.Fields.[idx]
+                printfn "Field: %A" rf.Name
                 use defaultStream = new IO.MemoryStream()
                 let defaultEncoder = BinaryEncoder(defaultStream)
                 let defaultDecoder = BinaryDecoder(defaultStream)
@@ -73,8 +74,9 @@ type FSharpReader<'T>(writerSchema:Schema, readerSchema:Schema, reflector:Schema
                 Array.Resize(arrayReference, array.Length + nextBlockSize)
                 readBlock arrayReference.Value array.Length nextBlockSize
 
-        let firstBlockSize = decoder.ReadArrayStart() |> int
-        readBlock (Array.zeroCreate firstBlockSize) 0 firstBlockSize
+        match decoder.ReadArrayStart() |> int with
+        | 0 -> [||]
+        | firstBlockSize -> readBlock (Array.zeroCreate firstBlockSize) 0 firstBlockSize
 
     override this.ReadArray(_:obj, writerSchema:ArraySchema, readerSchema:Schema, decoder:Decoder) =
         let rs = readerSchema :?> ArraySchema

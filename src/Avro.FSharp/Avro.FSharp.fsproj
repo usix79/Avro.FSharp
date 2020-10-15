@@ -3,9 +3,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Avro.FSharp.Annotations\Avro.FSharp.Annotations.fsproj" />
-  </ItemGroup>
-  <ItemGroup>
+    <Compile Include="Annotations.fs" />
     <Compile Include="SchemaReflector.fs" />
     <Compile Include="Reader.fs" />
     <Compile Include="Writer.fs" />
@@ -13,7 +11,7 @@
     <Compile Include="Schema.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Apache.Avro" Version="1.10.0" />
+    <PackageReference Include="Apache.Avro" Version="1.9.2" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
   </ItemGroup>
 </Project>

@@ -262,9 +262,9 @@ let annotationsTests =
                 "name": "Foo.Bar.NewRecord",
                 "aliases": ["OldRecord"],
                 "fields" : [
-                    {"name": "Id", "type": "int", "default": 42},            
+                    {"name": "Id", "type": "int"},            
                     {"name": "Caption", "aliases": ["Title", "Cap"], "type": "string"},
-                    {"name": "Price", "type": {"type": "bytes", "logicalType": "decimal", "precision": 29, "scale": 3}},
+                    {"name": "Description", "type": "string", "default":"Not Yet Described"},
                 ]                
             }""")
         }

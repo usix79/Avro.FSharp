@@ -145,8 +145,24 @@ let customTypesTests =
 
 [<Tests>]
 let evolutionTests =
-    ftestList "EvolutionTests" [
-        //genEvolutionTest "Added nullable field" ({Id=456}:RecordWithId) ({Id=456; NewId=None }:RecordWithNewId)
+    testList "EvolutionTests" [
         genEvolutionTest "Added string field" ({Id=456}:RecordWithId) ({Id=456; NewField="Hello" }:RecordWithNewField)
+        genEvolutionTest "New Record" ({Id=456; Title="Hello World!!!"}:OldRecord) ({Id=456; Caption="Hello World!!!"; Description="Not Yet Described"}:NewRecord)
+        genEvolutionTest "New Enum" (TestState.Green) (NewTestState.Green)
 
-    ]|> testLabel "Serde"    
+    ]|> testLabel "Serde"
+
+[<Tests>]
+let complexTests =
+    testList "ComplexTests" [
+        let basket:Basket = [
+            SaleItem (Product("XXX-1", "Product 1", 10m<GBP/Q>), 1m<Q>)
+            SaleItem (Product("XXX-2", "Product 2", 1m<GBP/Q>), 10m<Q>)
+            SaleItem (Product("XXX-3", "Product 3", 3.14m<GBP/Q>), 5m<Q>)
+            TenderItem (Cash, 100m<GBP>)
+            TenderItem ((Card "1111-1111-1111-1111"), 15m<GBP>)
+            CancelItem 2
+        ]
+        genTest "Basket" basket
+
+    ]|> testLabel "Serde"   
