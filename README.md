@@ -225,11 +225,11 @@ type CustomRule(type':System.Type, schema:string, writeCast:obj->obj, readCast:o
     member _.ReadCast = readCast
 ```
 There are several build in rules:
-* `Guid` maps to byte array
-* `Uri` maps to string
-* `DateTime` maps to ISO 8601 string
-* `DateTimeOffset` maps to ISO 8601 string
-* `TimeSpan` maps to ISO 8601 string
+* `Guid` is mapped to byte array
+* `Uri` is mapped to string
+* `DateTime` is mapped to ISO 8601 string
+* `DateTimeOffset` is mapped to ISO 8601 string
+* `TimeSpan` is mapped to ISO 8601 string
 
 Array with custom rules should be passed as first argument to `generateSchema`.
 
