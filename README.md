@@ -202,7 +202,7 @@ match generateSchemaAndReflector [||] typeof<'T> with
     comparer "Deserialized data should be equal to original" data deserializedData
 | Error err -> failwithf "Schema error %A" err 
 ```
-## Deserialization limitations
+## Deserialization issues
 ### Supported types for an array
 Reading of an array will be successfull if corresponding type is:
 * Dotnet array
