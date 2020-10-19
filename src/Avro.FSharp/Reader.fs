@@ -4,8 +4,6 @@ open System
 open Avro
 open Avro.IO
 open Avro.Generic
-open Avro.Specific
-open System
 open System.Numerics
 open System.Collections.Generic
 
@@ -14,13 +12,12 @@ type FSharpReader<'T>(writerSchema:Schema, readerSchema:Schema, reflector:Schema
     let rootReaderSchema = readerSchema
 
     let resolverType = 
-        typeof<Avro.IO.Encoder>.Assembly.GetTypes()
+        typeof<IO.Encoder>.Assembly.GetTypes()
         |> Array.find (fun t -> t.FullName = "Avro.IO.Resolver")
     
     let encodeDefaultValueMI = resolverType.GetMethod("EncodeDefaultValue")
     let encodeDefaultValue (enc, schema, jtok) = encodeDefaultValueMI.Invoke(null, [|enc; schema; jtok|])
 
-    
     interface DatumReader<'T> with
         member _.WriterSchema: Schema = writerSchema
         member _.ReaderSchema: Schema = readerSchema
@@ -60,7 +57,6 @@ type FSharpReader<'T>(writerSchema:Schema, readerSchema:Schema, reflector:Schema
         let symbol = writerSchema.[decoder.ReadEnum()]
         reflector.GetEnumValue es.Fullname symbol
 
-
     member private _.ReadArrayGeneric<'TItem> (decoder:Decoder) itemReader =
         
         let rec readBlock (array:'TItem array) startIdx blockSize =
@@ -89,7 +85,6 @@ type FSharpReader<'T>(writerSchema:Schema, readerSchema:Schema, reflector:Schema
         // cast result to target type if it is root schema
         if readerSchema = rootReaderSchema then reflector.ReadCast (typeof<'T>) array else array
 
-
     override this.ReadMap(_:obj, writerSchema:MapSchema, readerSchema:Schema, decoder:Decoder) =
         let rs = readerSchema :?> MapSchema
         
@@ -116,7 +111,6 @@ type FSharpReader<'T>(writerSchema:Schema, readerSchema:Schema, reflector:Schema
             let decimalValue = (decimal quotient) + ((decimal remainder) / (decimal (Math.Pow(10., float scale))))
             decimalValue :> obj
         | _ -> writerSchema.LogicalType.ConvertToLogicalValue(value, ls)
-
 
     override _.ReadFixed(reuse:obj, writerSchema:FixedSchema, readerSchema:Schema, decoder:Decoder) =
         let bytes = (base.ReadFixed(obj, writerSchema, readerSchema, decoder) :?> GenericFixed).Value :> obj

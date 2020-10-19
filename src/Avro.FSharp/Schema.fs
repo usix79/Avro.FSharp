@@ -229,7 +229,7 @@ let private doubleSchema = primitive "double"
 
 let private createLogicalSchema : Schema -> string -> PropertyMap -> Schema = logicalSchemaConstructor() 
 
-let private uuidSchema : Schema = createLogicalSchema stringSchema "uuid" null
+//let private uuidSchema : Schema = createLogicalSchema stringSchema "uuid" null
 
 let private createDecimalSchema pecision scale : Schema = 
     let props = PropertyMap()
