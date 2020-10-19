@@ -133,7 +133,7 @@ type BinaryTree =
     | Leaf of value:string
     | Node of left: BinaryTree * right: BinaryTree
 
-generateSchema [||] typeof<BinaryTree>>
+generateSchema [||] typeof<BinaryTree>
 ```
 generated schema:
 ```json
@@ -165,16 +165,16 @@ Example:
 `generateSchema [||] typeof<Option<float>>` generates `["null","double"]`
 
 ### Logical types
-F# `decimal` is mapped to `{"type": "bytes", "logicalType": "decimal", "precision": 29, "scale": 14}` unless scale is not defined with `ScaleAttribute`
+F# `decimal` is mapped to `{"type": "bytes", "logicalType": "decimal", "precision": 29, "scale": 14}`. Scale may be overrided by `ScaleAttribute`
 
 ## Annotations
 Annotation Attributes allow to set additional schema's properties.
 ### DefaultValue
 `type DefaultValueAttribute (defaultValue:string)` - default value for a record's field.
 ### Aliases
-`type AliasesAttribute (aliases:string array)` - aliases for an enum, a record or a record's field
+`type AliasesAttribute (aliases:string array)` - aliases for an enum, a record or a record's field.
 ### Scale
-`type ScaleAttribute (scale:int)` - scale for decimal field
+`type ScaleAttribute (scale:int)` - scale for decimal field.
 
 ## Names
 Names of the enums and the records is constructed from namespace, module name and generic type arguments. Due to the fact that only `[A-Za-z0-9_]` symbols are allowed, some substitutions are performed.
@@ -189,14 +189,18 @@ Examples of record names:
 For serializing use `FSharpWriter<'T>` which implements `Avro.Generic.DatumWriter<'T>`, for deserializing use `FSharpReader<'T>` which implements `Avro.Generic.DatumReader<'T>`. Here is basic example:
 
 ```fsharp
-let schema = Schema.Parse(schema.ToString())
-let writer = FSharpWriter<'T>(schema, reflector)                
-use writerStream = new MemoryStream(256)
-writer.Write(data, BinaryEncoder(writerStream))
+match generateSchemaAndReflector [||] typeof<'T> with
+| Ok (schema, reflector) -> 
+    let schema = Schema.Parse(schema.ToString())
+    let writer = FSharpWriter<'T>(schema, reflector)                
+    use writerStream = new MemoryStream(256)
+    writer.Write(data, BinaryEncoder(writerStream))
 
-use readerStream = new MemoryStream(writerStream.ToArray())
-let reader = FSharpReader<'T>(schema, schema, reflector)
-let deserializedData = reader.Read(Unchecked.defaultof<'T>, BinaryDecoder(readerStream))
+    use readerStream = new MemoryStream(writerStream.ToArray())
+    let reader = FSharpReader<'T>(schema, schema, reflector)
+    let deserializedData = reader.Read(Unchecked.defaultof<'T>, BinaryDecoder(readerStream))
+    comparer "Deserialized data should be equal to original" data deserializedData
+| Error err -> failwithf "Schema error %A" err 
 ```
 ## Deserialization limitations
 ### Supported types for an array

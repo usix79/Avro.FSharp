@@ -2,10 +2,10 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
 
-    <PackageId>Avro.FSarp</PackageId>    
+    <PackageId>Avro.FSharp</PackageId>    
     <Authors>usix</Authors>
-    <Title>Avro.FSarp</Title>
-    <Description>FSharp extentions for Apache Avro</Description>
+    <Title>Avro.FSharp</Title>
+    <Description>FSharp extentions for Apache Avro. The library generates an Avro schema by an F# type as well as provides reader and writer classes.</Description>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
     <FileVersion>0.1.0.0</FileVersion>
     <Version>0.1.0.0</Version>
