@@ -36,7 +36,6 @@ type ExampleDeserializer<'T> (schemaRegistryClient: ISchemaRegistryClient) =
         let writerSchema = Avro.Schema.Parse(writerSchemaResult.SchemaString)
         FSharpReader<'T>(writerSchema, readerSchema, reflector)
 
-    let mutable x = 0
     interface IDeserializer<'T> with
         member _.Deserialize(data:ReadOnlySpan<byte>, isNull:bool, context:SerializationContext): 'T =             
             try
