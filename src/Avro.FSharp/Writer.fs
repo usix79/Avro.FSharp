@@ -3,7 +3,6 @@ namespace Avro.FSharp
 open Avro
 open Avro.IO
 open Avro.Generic
-open Avro.Specific
 open System
 open System.Numerics
 

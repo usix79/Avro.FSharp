@@ -353,31 +353,9 @@ and private genRecordSchema
         schema |> Ok
     | _, errors -> AggregateError errors |> Error
 
-let buidInRules = [|
-    CustomRule(typeof<Guid>, 
-        """{"type": "fixed", "name": "guid", "size": 16}""", 
-        (fun v -> (v :?> Guid).ToByteArray() :> obj),
-        (fun v -> (v :?> byte[]) |> Guid :> obj))
-    CustomRule(typeof<Uri>, 
-        """{"type": "string"}""", 
-        (fun v -> v.ToString() :> obj),
-        (fun v -> (v :?> string) |> Uri :> obj))
-    CustomRule(typeof<DateTime>,
-        """{"type": "string"}""", 
-        (fun v -> (v :?> DateTime).ToString("O", CultureInfo.InvariantCulture) :> obj),
-        (fun v -> DateTime.Parse((v :?> string), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind) :> obj))
-    CustomRule(typeof<DateTimeOffset>,
-        """{"type": "string"}""", 
-        (fun v -> (v :?> DateTimeOffset).ToString("O", CultureInfo.InvariantCulture) :> obj),
-        (fun v -> DateTimeOffset.Parse((v :?> string), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind) :> obj))
-    CustomRule(typeof<TimeSpan>,
-        """{"type": "string"}""", 
-        (fun v -> (v :?> TimeSpan) |> Xml.XmlConvert.ToString :> obj),
-        (fun v -> Xml.XmlConvert.ToTimeSpan(v :?> string) :> obj))
-|]
 
 let private generateSchema' (cache:SchemaCache) (customRules:CustomRule array) (type':Type): Result<Schema,SchemaError> =
-    for rule in seq {yield! buidInRules; yield!customRules} do
+    for rule in seq {yield! CustomRules.buidInRules; yield!customRules} do
         cache.Add(Custom rule.TargetType, Schema.Parse rule.Schema)
     genSchema type' cache
 
@@ -392,7 +370,7 @@ let generateSchemaAndReflector (customRules:CustomRule array) (type':Type) : Res
         let reflector = SchemaReflector()
 
         // it is significant to add custom rules before arrays, maps, etc
-        for rule in seq {yield! buidInRules; yield!customRules} do
+        for rule in seq {yield! CustomRules.buidInRules; yield!customRules} do
             reflector.AddWriteCast rule.TargetType rule.WriteCast
             reflector.AddReadCast rule.TargetType rule.ReadCast
         
