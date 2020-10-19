@@ -4,7 +4,7 @@ FSharp extentions for Apache Avro
 
 ## Overview
 
-The library generates an Avro schema by an F# type as well as allow serialize and deserialize F# data.
+The library generates an Avro schema by an F# type as well as provides reader and writer classes.
 
 ## Schema
 
@@ -124,7 +124,7 @@ generated schema:
 ```
 ### Unions
 
-F# Discriminated Union is mapped to Avro's `union` of record, generated from the union's cases
+F# Discriminated Union is mapped to Avro's `union` of records, generated from the union's cases
 
 Example:
 
@@ -177,7 +177,7 @@ Annotation Attributes allow to set additional schema's properties.
 `type ScaleAttribute (scale:int)` - scale for decimal field
 
 ## Names
-Names of the enums and the records is constructed from namespace, module name and generic type arguments. Due to the fact that only `[A-Za-z0-9_]` is allowed, some substitutions are performed.
+Names of the enums and the records is constructed from namespace, module name and generic type arguments. Due to the fact that only `[A-Za-z0-9_]` symbols are allowed, some substitutions are performed.
 
 Examples of record names:
 * `Microsoft.FSharp.Core.FSharpResult_Of_System_Int64_And_System_String.Ok`
@@ -234,4 +234,4 @@ More examples of complex types and corresponging schemas is available in the [Sc
 
 See [CustomRule.fs](https://github.com/usix79/Avro.FSharp/blob/main/src/Avro.FSharp/CustomRule.fs) for details of the implementation of the custom rules.
 
-An implementation of Kafka producer and consumer, working with SchemaRegistry could be found [here](https://github.com/usix79/Avro.FSharp/tree/main/examples/KafkaSerde). (*The example is supposed you have an account in confluent.cloud. Edit configuration code if you have on-premise installation.*)
+An implementation of Kafka producer and consumer, working with SchemaRegistry could be found [here](https://github.com/usix79/Avro.FSharp/tree/main/examples/KafkaSerde). (*The example is supposed you have an account in confluent.cloud. Change configuration code if you have on-premise installation.*)
