@@ -14,6 +14,11 @@ type SimpleRecord = {
     Version : int64
 }
 
+type ParentRecord = {
+    Chield1 : SimpleRecord
+    Chield2 : SimpleRecord
+}
+
 type HierarchyRecord = {
     Title: string
     Details: SimpleRecord
@@ -42,7 +47,7 @@ type RecordWithNewId = {
 [<Aliases[|"Foo.Bar.RecordWithId"|]>] 
 type RecordWithNewField = {
     Id : int
-    [<DefaultValue(""" "Hello" """)>]
+    [<DefaultValue("Hello")>]
     NewField: string
 }
 
@@ -78,7 +83,7 @@ type NewRecord = {
     Id : int
     [<Aliases [|"Title"; "Cap"|]>] 
     Caption: string
-    [<DefaultValue """ "Not Yet Described" """>]
+    [<DefaultValue "Not Yet Described">]
     Description : string
 }
 

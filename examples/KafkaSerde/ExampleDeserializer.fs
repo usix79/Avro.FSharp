@@ -11,8 +11,8 @@ open Avro.FSharp
 
 type ExampleDeserializer<'T> (schemaRegistryClient: ISchemaRegistryClient) =
     let readerSchema, reflector = 
-        match Schema.generateSchemaAndReflector [||] typeof<'T> with
-        | Ok (schema,reflector) -> Avro.Schema.Parse(schema.ToString()), reflector
+        match Schema.generateWithReflector [] typeof<'T> with
+        | Ok (schema,reflector) -> Avro.Schema.Parse(schema |> Schema.toString), reflector
         | Error err -> failwithf "SchemaError: %A" err
 
     let readersCache = ConcurrentDictionary<int, FSharpReader<'T>>()

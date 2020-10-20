@@ -7,12 +7,12 @@ open Confluent.SchemaRegistry
 open Avro.FSharp
 
 type ExampleSerializer<'T> (schemaSubject:string, schemaRegistryClient: ISchemaRegistryClient) =
-    let writer = 
-        match Schema.generateSchemaAndReflector [||] typeof<'T> with
-        | Ok (schema,reflector) -> FSharpWriter<'T>(Avro.Schema.Parse(schema.ToString()), reflector)
+    let writer,schema = 
+        match Schema.generateWithReflector [] typeof<'T> with
+        | Ok (schema,reflector) -> FSharpWriter<'T>(Avro.Schema.Parse(schema |> Schema.toString), reflector),schema
         | Error err -> failwithf "SchemaError: %A" err
 
-    let schemaId = schemaRegistryClient.RegisterSchemaAsync(schemaSubject, Schema(writer.Schema.ToString(), SchemaType.Avro)).Result
+    let schemaId = schemaRegistryClient.RegisterSchemaAsync(schemaSubject, Schema(schema |> Schema.toString, SchemaType.Avro)).Result
 
     let prefix = [|
         0uy // magic Byte

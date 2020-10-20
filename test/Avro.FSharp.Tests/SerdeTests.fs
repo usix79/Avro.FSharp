@@ -6,16 +6,16 @@ open System.Linq
 open Avro
 open Avro.IO
 open Avro.FSharp
-open Avro.FSharp.Schema
 open Expecto
 open Expecto.Flip
 open Foo.Bar
 
+
 let genTest'<'T> comparer name (data:'T)  =
     test name {
-        match generateSchemaAndReflector [||] typeof<'T> with
+        match Schema.generateWithReflector [] typeof<'T> with
         | Ok (schema, reflector) -> 
-            let schema = Schema.Parse(schema.ToString())
+            let schema = Schema.Parse(schema |> Schema.toString)
             let writer = FSharpWriter<'T>(schema, reflector)                
             use writerStream = new MemoryStream(256)
             writer.Write(data, BinaryEncoder(writerStream))
@@ -34,16 +34,16 @@ let compareDictionaries<'TKey,'TValue> msg (expected:Dictionary<'TKey,'TValue>) 
 
 let genEvolutionTest<'TSource, 'TDest when 'TDest:equality>  name (data:'TSource) (expectedData:'TDest) =
     test name {
-        match generateSchemaAndReflector [||] typeof<'TSource> with
+        match Schema.generateWithReflector [] typeof<'TSource> with
         | Ok (writerSchema, reflector) -> 
-            let writerSchema = Schema.Parse(writerSchema.ToString())
+            let writerSchema = Schema.Parse(writerSchema |> Schema.toString)
             let writer = FSharpWriter<'TSource>(writerSchema, reflector)                
             use writerStream = new MemoryStream(256)
             writer.Write(data, BinaryEncoder(writerStream))
 
-            match generateSchemaAndReflector [||] typeof<'TDest> with
+            match Schema.generateWithReflector [] typeof<'TDest> with
             | Ok (readerSchema, reflector) -> 
-                let readerSchema = Schema.Parse(readerSchema.ToString())
+                let readerSchema = Schema.Parse(readerSchema |> Schema.toString)
                 use readerStream = new MemoryStream(writerStream.ToArray())
                 let reader = FSharpReader<'TDest>(writerSchema, readerSchema, reflector)
                 let deserializedData = reader.Read(Unchecked.defaultof<'TDest>, BinaryDecoder(readerStream))
