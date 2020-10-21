@@ -36,7 +36,6 @@ module internal Reflector =
         Items: obj -> Collections.DictionaryEntry seq
     }
 
-
     let tryGetValue<'TKey,'TValue> (dict:IDictionary<'TKey,'TValue>) key (desctiption:string->string)  =
         match dict.TryGetValue key with
         | true, value' -> value'
