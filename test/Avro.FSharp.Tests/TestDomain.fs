@@ -87,11 +87,10 @@ type NewRecord = {
     Description : string
 }
 
-[<Aliases[|"Foo.Bar.TestState"|]>] 
+[<Aliases[|"Foo.Bar.TestState"|];DefaultValue("Blue")>] 
 type NewTestState =
     | Red = 3
     | Yellow = 2
-    | Green = 1
     | Blue = 10
 
 // Snippet link: http://fssnip.net/kW

@@ -26,11 +26,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Annotations.fs" />
+    <Compile Include="CustomRule.fs" />
     <Compile Include="SchemaReflector.fs" />
     <Compile Include="Reader.fs" />
     <Compile Include="Writer.fs" />
-    <Compile Include="CustomRule.fs" />
     <Compile Include="Schema.fs" />
+    <Compile Include="Abstractions.fs" />
+    <Compile Include="JsonImpl.fs" />
+    <Compile Include="InstanceImpl.fs" />
+    <Compile Include="InstanceFactory.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Apache.Avro" Version="1.10.0" />

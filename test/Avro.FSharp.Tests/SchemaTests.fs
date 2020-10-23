@@ -1,4 +1,4 @@
-module SchemaTests
+module Avro.FSharp.SchemaTests
 
 open Expecto
 open Expecto.Flip
@@ -298,7 +298,8 @@ let annotationsTests =
                 "type": "enum", 
                 "name": "Foo.Bar.NewTestState", 
                 "aliases":["Foo.Bar.TestState"], 
-                "symbols": ["Red", "Yellow", "Green", "Blue"]
+                "symbols": ["Red", "Yellow", "Blue"],
+                "default":"Blue"
             }"""
         }
     ]|> testLabel "Schema"    

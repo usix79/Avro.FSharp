@@ -77,9 +77,13 @@ type SchemaReflector() =
         writeCasts.[originalType] <- cast
 
     member _.WriteCast obj =
-        match writeCasts.TryGetValue (obj.GetType()) with
-        | true, cast -> cast obj
-        | _ -> obj
+        match obj with
+        | null -> null
+        | _ ->
+            match writeCasts.TryGetValue (obj.GetType()) with
+            | true, cast -> 
+                cast obj
+            | _ -> obj
 
     member _.AddReadCast targetType cast =
         readCasts.[targetType] <- cast
@@ -261,7 +265,6 @@ type SchemaReflector() =
                     fun obj -> ci.Invoke([|castMi.Invoke(null, [|obj|])|])
 
         readCasts.Add(type', readCast)
-
 
     member private _.GetArrayInfo arrayType =     
         sprintf "looking for array: %s"

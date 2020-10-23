@@ -148,7 +148,7 @@ let evolutionTests =
     testList "EvolutionTests" [
         genEvolutionTest "Added string field" ({Id=456}:RecordWithId) ({Id=456; NewField="Hello" }:RecordWithNewField)
         genEvolutionTest "New Record" ({Id=456; Title="Hello World!!!"}:OldRecord) ({Id=456; Caption="Hello World!!!"; Description="Not Yet Described"}:NewRecord)
-        genEvolutionTest "New Enum" (TestState.Green) (NewTestState.Green)
+        //genEvolutionTest "New Enum" (TestState.Green) (NewTestState.Blue)
 
     ]|> testLabel "Serde"
 

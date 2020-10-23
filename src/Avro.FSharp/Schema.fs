@@ -22,7 +22,7 @@ type Schema =
     | Enum of EnumSchema
     | Array of ArraySchema
     | Map of MapSchema
-    | Union of Schema list
+    | Union of Schema array
     | Fixed of FixedSchema
     | Decimal of DecimalSchema
 and RecordSchema = {Name: string; Aliases: string list; Fields: List<RecordField>} 
@@ -37,7 +37,7 @@ type SchemaError =
     | AggregateError of SchemaError list
     | NotSupportedType of Type
 
-type private GenCacheKey =
+type SchemaCacheKey =
     | EnumCacheKey of Type
     | RecordCacheKey of Type
     | UnionCaseCacheKey of unionType:Type * caseName:string
@@ -46,14 +46,16 @@ type private GenCacheKey =
     | CustomCacheKey of Type
     | NullableCacheKey of Type
 
-type private Cache<'TKey,'TValue when 'TKey : equality>() =
+type Cache<'TKey,'TValue when 'TKey : equality>() =
     inherit Dictionary<'TKey, 'TValue>()
     member this.AddSchema key schema = this.[key] <- schema; schema
     member this.TryFindSchema key = match this.TryGetValue key with true, schema -> Some schema | _ -> None
 
+type SchemaCache = Cache<SchemaCacheKey,Schema>
+
 module Schema =
 
-    let private getOrCreate (cache:Cache<GenCacheKey,Schema>) key creator =
+    let private getOrCreate (cache:SchemaCache) key creator =
         match cache.TryFindSchema key with
         | Some schema -> schema |> Ok
         | None -> creator key cache |> Result.map (cache.AddSchema key)
@@ -102,7 +104,7 @@ module Schema =
     let private createArraySchema (type':Type) itemsSchema =
         Array {Items = itemsSchema; Default = getDefaultValue type'}
 
-    let private createRecordSchema (key:GenCacheKey) fields =
+    let private createRecordSchema (key:SchemaCacheKey) fields =
         let type',name =
             match key with
             | RecordCacheKey type' -> type', typeName type'
@@ -133,7 +135,7 @@ module Schema =
         FSharpType.GetTupleElements type'
         |> Array.mapi (fun idx t -> {| Name = sprintf"Item%d" (idx+1); Aliases = [||]; Default = None; Scale = None; Type = t |})
 
-    let rec private genSchema (type':Type) (cache:Cache<GenCacheKey,Schema>) : Result<Schema,SchemaError> =
+    let rec private genSchema (type':Type) (cache:Cache<SchemaCacheKey,Schema>) : Result<Schema,SchemaError> =
         match type' with
         | t when t = typeof<string> -> String |> Ok
         | t when t = typeof<bool> -> Boolean |> Ok
@@ -160,7 +162,7 @@ module Schema =
             | AsOption someType -> 
                 genSchema someType cache 
                 |> Result.bind (fun someSchema ->
-                    (fun _ _ -> Union [Null; someSchema] |> Ok)
+                    (fun _ _ -> Union [|Null; someSchema|] |> Ok)
                     |> getOrCreate cache (NullableCacheKey t))                
             | _ ->
                 let schemas, errors =
@@ -170,7 +172,7 @@ module Schema =
                         uci, getOrCreate cache key (getUnionCaseFieldsInfo uci |> genRecordSchema))
                     |> splitResults
                 match schemas, errors with
-                | schemas,[] -> schemas |> List.map snd |> Union |> Ok
+                | schemas,[] -> schemas |> List.map snd |> List.toArray |> Union |> Ok
                 | _, errors -> AggregateError errors |> Error  
         | t ->         
             match cache.TryFindSchema (CustomCacheKey t) with
@@ -179,8 +181,8 @@ module Schema =
 
     and private genRecordSchema 
             (fieldsInfo:{|Name:string; Aliases:string array; Default:string option; Scale: int option; Type:Type|} array)
-            (key:GenCacheKey)
-            (cache:Cache<GenCacheKey,Schema>) =
+            (key:SchemaCacheKey)
+            (cache:Cache<SchemaCacheKey,Schema>) =
 
         let fields = List<RecordField>()
         let schema = 
@@ -287,7 +289,7 @@ module Schema =
                 | JsonValueKind.Array -> parse ns typeEl
                 | kind -> failwithf "not supported kind for 'type' property: %A" kind 
             | JsonValueKind.Array ->
-                seq{for i in 0 .. el.GetArrayLength() - 1 do parse ns el.[i]} |> List.ofSeq |> Union
+                seq{for i in 0 .. el.GetArrayLength() - 1 do parse ns el.[i]} |> Array.ofSeq |> Union
             | JsonValueKind.String ->
                 match el.GetString() with
                 | IsPrimitive schema -> schema
@@ -318,7 +320,7 @@ module Schema =
                 | Boolean -> writer.WriteBooleanValue (bool.Parse(v))
                 | Int | Long | Float | Double -> writer.WriteNumberValue(Decimal.Parse(v))
                 | Record _ | Map _ | Array _ -> JsonDocument.Parse(v).WriteTo writer
-                | Union (head::_) -> wr v head
+                | Union arr -> wr v arr.[0]
                 | _ -> writer.WriteStringValue v
             
             if isCanonical then ignore
@@ -327,7 +329,7 @@ module Schema =
         let rec write = function
             | Union cases -> 
                 writer.WriteStartArray()
-                cases |> List.iter write
+                cases |> Array.iter write
                 writer.WriteEndArray()
             | Null -> writer.WriteStringValue "null"
             | Boolean -> writer.WriteStringValue "boolean"
@@ -414,23 +416,23 @@ module Schema =
 
     let toCanonicalString = toString' true
 
-    let private generate' (cache:Cache<GenCacheKey,Schema>) (customRules:CustomRule list) (type':Type): Result<Schema, SchemaError> =
+    let private generate' (cache:SchemaCache) (customRules:CustomRule list) (type':Type): Result<Schema, SchemaError> =
         for rule in seq {yield! CustomRule.buidInRules; yield!customRules} do
             cache.Add(CustomCacheKey rule.TargetType, ofString rule.Schema)
         genSchema type' cache
 
     let generate(customRules:CustomRule list) (type':Type)  : Result<Schema, SchemaError> =
-        generate' (Cache<GenCacheKey,Schema>()) customRules type'
+        generate' (SchemaCache()) customRules type'
 
-    let generateWithReflector (customRules:CustomRule list) (type':Type) : Result<Schema*SchemaReflector, SchemaError>  =
-        let cache = Cache<GenCacheKey,Schema>()
+    let generateWithReflector (rules:CustomRule list) (type':Type) : Result<Schema*SchemaReflector, SchemaError>  =
+        let cache = SchemaCache()
 
-        generate' cache customRules type'
+        generate' cache rules type'
         |> Result.map (fun schema ->
             let reflector = SchemaReflector()
 
             // it is significant to add custom rules before arrays, maps, etc
-            for rule in seq {yield! CustomRule.buidInRules; yield!customRules} do
+            for rule in seq {yield! CustomRule.buidInRules; yield!rules} do
                 reflector.AddWriteCast rule.TargetType rule.WriteCast
                 reflector.AddReadCast rule.TargetType rule.ReadCast
             
@@ -443,3 +445,6 @@ module Schema =
             for pair in cache do match pair.Key with NullableCacheKey type' -> reflector.AddNullable type' | _ -> ()
 
             schema,reflector)
+      
+    let generateWithCache (cache:SchemaCache) (rules:CustomRule list) (type':Type) : Result<Schema, SchemaError>  =
+        generate' cache rules type'
