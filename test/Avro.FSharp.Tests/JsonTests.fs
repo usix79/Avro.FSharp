@@ -137,7 +137,7 @@ let jsonSimpleTest (case:SimpleCase) =
         case.Comparer "Copy should be equal to original" case.Instance copy
     }
 
-let jsonEvolutionTest (case:EvolutionCase)=
+let jsonEvolutionTest (case:EvolutionCase) =
     test case.Name {
         let factory = InstanceFactory(case.InstanceType, [])
         
@@ -183,8 +183,6 @@ let binarySimpleTest (case:SimpleCase) =
 
         let data = stream.ToArray()
 
-        //printfn "Serialization result: %s" (System.Text.Encoding.UTF8.GetString(data, 0, data.Length))
-
         let instanceBuilder = InstanceBuilder(factory)
         let binaryDirector = BinaryDirector()
         use stream = new MemoryStream(data)
@@ -196,8 +194,36 @@ let binarySimpleTest (case:SimpleCase) =
         case.Comparer "Copy should be equal to original" case.Instance copy
     }
 
+let binaryEvolutionTest (case:EvolutionCase) =
+    test case.Name {
+        let factory = InstanceFactory(case.InstanceType, [])
+        
+        let instanceDirector = InstanceDirector(factory)
+        use stream = new MemoryStream()
+        use writer = new BinaryWriter(stream, System.Text.Encoding.UTF8)
+        let binaryBuilder = BinaryBuilder(writer)
+        instanceDirector.Construct(case.Instance, binaryBuilder)
+
+        let data = stream.ToArray()
+
+        let destFactory = InstanceFactory(case.ExpectedInstance.GetType(), [])
+        let instanceBuilder = InstanceBuilder(destFactory)
+        let binaryDirector = BinaryDirector()
+        use stream = new MemoryStream(data)
+        use reader = new BinaryReader(stream)
+        binaryDirector.Construct(reader, (factory :> IInstanceFactory).TargetSchema, instanceBuilder)
+
+        case.Comparer "Deserialized data should be equal to original" case.ExpectedInstance instanceBuilder.Instance
+    }
+
 [<Tests>]
 let binarySimpleCasesTests =
     simpleCases
     |> List.map (fun list -> testList list.Name (list.Cases |> List.map binarySimpleTest))
+    |> testList "Binary"
+
+[<Tests>]
+let binaryEvolutionCasesTests =
+    evolutionCases
+    |> List.map binaryEvolutionTest
     |> testList "Binary"
