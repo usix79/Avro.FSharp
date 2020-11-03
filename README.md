@@ -201,7 +201,7 @@ Implementation of serialization and deserialization is based on [builder pattern
 
 | Implementation | Director | Builder |
 | -------------- | -------- | ------- |
-| Instance | `type InstanceDirector(factory: IInstanceFactory)` - deconstructs an F# instance | `type InstanceBuilder(factory: IInstanceFactory)` - constructs an F# instance |
+| Instance | `type InstanceDirector(factory: IInstanceFactory)` - deconstruct an F# instance | `type InstanceBuilder(factory: IInstanceFactory)` - construct an F# instance |
 | Binary | `type BinaryDirector()` - read from binary encoding | `type BinaryBuilder(writer:BinaryWriter)` - write to binary encoding |
 | Json | `type JsonDirector()`  - read from json encoding | `type JsonBuilder(writer:Utf8JsonWriter)`  - write to json encoding |
 
@@ -255,7 +255,7 @@ Reading of a map will be successful if corresponding type is:
 
 According to Avro standard, adding a new type at a union is a non forward compatible change ([see](https://avro.apache.org/docs/current/spec.html#Schema+Resolution)).
 
-Let's pretend that first version of our domain is looks like:
+Let's pretend that first version of our domain looks like:
 ```fsharp
 type DomainUnion =
     | Case1
