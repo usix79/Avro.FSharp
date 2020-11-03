@@ -37,7 +37,7 @@ let enumTests =
         test "TestState" {
             generateSchema typeof<TestState> 
             |> Expect.wantOk "Schema should be created"
-            |> expectSchemasEqual <| Schema.ofString """{"type": "enum", "name": "Foo.Bar.TestState", "symbols": ["Red", "Yellow", "Green"]}"""
+            |> expectSchemasEqual <| Schema.ofString """{"type": "enum", "name": "Foo.Bar.TestState", "symbols": ["Green", "Yellow", "Red"]}"""
         }
     ]|> testLabel "Schema"
 
@@ -298,7 +298,7 @@ let annotationsTests =
                 "type": "enum", 
                 "name": "Foo.Bar.NewTestState", 
                 "aliases":["Foo.Bar.TestState"], 
-                "symbols": ["Red", "Yellow", "Blue"],
+                "symbols": ["Yellow", "Red", "Blue"],
                 "default":"Blue"
             }"""
         }

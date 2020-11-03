@@ -27,7 +27,7 @@ type Schema =
     | Decimal of DecimalSchema
 and RecordSchema = {Name: string; Aliases: string list; Fields: List<RecordField>} 
 and RecordField = {Name: string; Aliases: string list; Type: Schema; Default: string option} 
-and EnumSchema = {Name: string; Aliases: string list; Symbols: string list; Default: string option} 
+and EnumSchema = {Name: string; Aliases: string list; Symbols: string array; Default: string option} 
 and ArraySchema = {Items: Schema; Default: string option}
 and MapSchema = {Values: Schema; Default: string option}
 and FixedSchema = {Name: string; Aliases: string list; Size: int}
@@ -95,7 +95,7 @@ module Schema =
         Enum {
             Name = typeName type'
             Aliases = getAliases type'
-            Symbols = type'.GetFields(BindingFlags.Public ||| BindingFlags.Static) |> Array.map(fun fi -> fi.Name) |> List.ofArray
+            Symbols = Enum.GetNames(type')
             Default = getDefaultValue type'}
 
     let private createMapSchema (type':Type) itemsSchema =
@@ -231,16 +231,16 @@ module Schema =
             match el.TryGetProperty name with 
             | true, el -> el 
             | _ -> failwithf "property '%s' is absent in %A" name (el.GetRawText())        
-        let getList (el:JsonElement) = seq { for i in 0 .. el.GetArrayLength() - 1 do el.[i].GetString() } |> List.ofSeq
+        let getSeq (el:JsonElement) = seq { for i in 0 .. el.GetArrayLength() - 1 do el.[i].GetString() }
         let getName ns (el:JsonElement) = 
             let ns = match tryGetProperty "namespace" el with Some el -> el.GetString() | _ -> ns            
             canonicalName ns ((getProperty "name" el).GetString())
         let getAliases ns (el:JsonElement) = 
             match el.TryGetProperty "aliases" with 
-            | true, el ->  getList el |> List.map ((canonicalName ns) >> snd)
+            | true, el ->  getSeq el |> List.ofSeq |> List.map ((canonicalName ns) >> snd)
             | _ -> []
         let getFieldName (el:JsonElement) = (getProperty "name" el).GetString()
-        let getSymbols (el:JsonElement) = match el.TryGetProperty "symbols" with true, el -> getList el | _ -> []
+        let getSymbols (el:JsonElement) = match el.TryGetProperty "symbols" with true, el -> getSeq el |> Array.ofSeq | _ -> [||]
         let getSize (el:JsonElement) = (getProperty "size" el).GetInt32()
         let getPrecision (el:JsonElement) = (getProperty "precision" el).GetInt32()
         let getScale (el:JsonElement) = (getProperty "scale" el).GetInt32()
@@ -307,13 +307,13 @@ module Schema =
         let writeType (typeName:string) = writer.WriteString("type", typeName)
         let writeName (name:string) = writer.WriteString("name", name)
         let writeArray (name:string) = function
-            | [] -> ()
-            | (values:string list) -> 
+            | [||] -> ()
+            | (values:string array) -> 
                 writer.WritePropertyName(name)
                 writer.WriteStartArray()
-                values |> List.iter writer.WriteStringValue
+                values |> Array.iter writer.WriteStringValue
                 writer.WriteEndArray()
-        let writeAliases = if isCanonical then ignore else writeArray "aliases"
+        let writeAliases = if isCanonical then ignore else Array.ofList >> (writeArray "aliases")
         let writeDefault (schema:Schema) = 
             let rec wr v = function
                 | Null -> writer.WriteNullValue()

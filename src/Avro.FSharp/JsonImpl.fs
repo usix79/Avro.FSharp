@@ -52,7 +52,10 @@ type JsonDirector() =
         | Double -> builder.Double(Double.Parse(value', Globalization.NumberStyles.Any))
         | Bytes -> builder.Bytes(Convert.FromBase64String(value'.Trim([|'"'|])))
         | String -> builder.String(value'.Trim([|'"'|]))
-        | Enum _ -> builder.Enum(value'.Trim([|'"'|]))
+        | Enum schema -> 
+            let symbol = value'.Trim([|'"'|])
+            let idx = Array.IndexOf(schema.Symbols, symbol)
+            builder.Enum(idx,symbol)
         | Decimal schema -> builder.Decimal(Decimal.Parse(value', Globalization.NumberStyles.Any), schema)
         | Fixed schema -> builder.Bytes(Convert.FromBase64String(value'.Trim([|'"'|])))
         | schema -> failwithf "Unexpected primitive schema: %A" schema
@@ -71,8 +74,11 @@ type JsonDirector() =
             | JsonValueKind.Number, Decimal schema -> builder.Decimal(el.GetDecimal(), schema)
             | JsonValueKind.String, String -> el.GetString() |> builder.String
             | JsonValueKind.String, Bytes -> el.GetBytesFromBase64() |> builder.Bytes
-            | JsonValueKind.String, Fixed _ -> el.GetBytesFromBase64() |> builder.Bytes
-            | JsonValueKind.String, Enum _ -> el.GetString() |> builder.Enum
+            | JsonValueKind.String, Fixed _ -> el.GetBytesFromBase64() |> builder.Fixed
+            | JsonValueKind.String, Enum schema -> 
+                let symbol = el.GetString()
+                let idx = Array.IndexOf(schema.Symbols, symbol)
+                builder.Enum(idx,symbol)
             | JsonValueKind.Object, Record _ -> 
                 builder.StartRecord()
                 for field in el.EnumerateObject() do                    
@@ -80,11 +86,13 @@ type JsonDirector() =
                         write field.Value builder.ExpectedValueSchema
                 builder.EndRecord()
             | JsonValueKind.Array, Array _ -> 
-                builder.StartArray(el.GetArrayLength())
+                builder.StartArray()
+                builder.StartArrayBlock(int64 (el.GetArrayLength()))
                 for el in el.EnumerateArray() do write el builder.ExpectedValueSchema
                 builder.EndArray()
             | JsonValueKind.Object, Map _ -> 
-                builder.StartMap(el.EnumerateObject() |> Seq.length)
+                builder.StartMap()
+                builder.StartMapBlock(int64 (el.EnumerateObject() |> Seq.length))
                 for field in el.EnumerateObject() do
                     builder.Key field.Name
                     write field.Value builder.ExpectedValueSchema
@@ -109,6 +117,7 @@ type JsonDirector() =
                     builder.EndUnionCase()
                 
                 | None -> failwithf "unknown union case: %s" field.Name
+
             | wrong -> failwithf "not supported combination %A" wrong
         
         write el builder.ExpectedValueSchema
@@ -127,13 +136,15 @@ type JsonBuilder(writer:Utf8JsonWriter) =
         member _.Bytes(v: byte array) = writer.WriteBase64StringValue(ReadOnlySpan<byte>(v))
         member _.Decimal(v: decimal, _: DecimalSchema) = writer.WriteNumberValue v
 
-        member _.Enum(v: string) = writer.WriteStringValue v
+        member _.Enum(idx:int, v: string) = writer.WriteStringValue v
         member _.StartRecord() = writer.WriteStartObject()
         member _.Field(name: string) = writer.WritePropertyName name; true
         member _.EndRecord() = writer.WriteEndObject()
-        member _.StartArray(size:int) = writer.WriteStartArray() 
+        member _.StartArray() = writer.WriteStartArray() 
+        member _.StartArrayBlock(size:int64) = ()
         member _.EndArray() = writer.WriteEndArray()
-        member _.StartMap(size:int) = writer.WriteStartObject()
+        member _.StartMap() = writer.WriteStartObject()
+        member _.StartMapBlock(size:int64) = ()
         member _.Key(key: string) = writer.WritePropertyName key 
         member _.EndMap() = writer.WriteEndObject()
         
@@ -147,5 +158,7 @@ type JsonBuilder(writer:Utf8JsonWriter) =
             writer.WriteStartObject()
             writer.WritePropertyName(JsonHelpers.avroTypeName schema)
         member _.EndSomeCase() = writer.WriteEndObject()
-        
+
+        member _.Fixed(v: byte array) = writer.WriteBase64StringValue(ReadOnlySpan<byte>(v))
+
         member _.End() = writer.Flush() 

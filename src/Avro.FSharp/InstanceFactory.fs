@@ -75,6 +75,23 @@ module internal ReflectionFactoryHelpers =
                 member _.SetValue(v: 'TArrayValue) = values.Add(cast(v:>obj)) |> ignore
                 member _.Construct() = ctr values}
 
+    let arrayDeconstructor (type':Type) =
+        let sizeFun = 
+            match type' with
+            | t when t.IsArray -> 
+                fun (obj:obj) -> (obj :?> Array).Length
+            | t when typeof<Collections.ICollection>.IsAssignableFrom(t) -> 
+                fun obj -> (obj :?> Collections.ICollection).Count
+            | _ ->
+                fun obj -> 
+                    let mutable count = 0
+                    for _ in obj :?> Collections.IEnumerable do count <- count + 1
+                    count                       
+
+        { new IArrayDeconstructor with
+             member _.Size (obj:obj) = sizeFun obj
+             member _.Items (obj:obj) =  obj :?> Collections.IEnumerable}
+
     let castSeqToDictionary<'TValue> (array: IEnumerable<KeyValuePair<string,obj>>) =
         let dict = Dictionary<string, 'TValue>()
         for pair in array do
@@ -115,6 +132,48 @@ module internal ReflectionFactoryHelpers =
                 member _.SetValue(v: 'TMapValue) = values.Add(currentKey, v)
                 member _.Construct() = ctr(values:>obj)}
 
+    let enumerateDict<'TKey,'TValue> (dict:IDictionary<'TKey,'TValue>) =
+        seq { for pair in dict do
+                Collections.DictionaryEntry(pair.Key, pair.Value) }
+
+    let mapDeconstructor (type': Type) =
+        let sizeFun = 
+            match type' with
+            | t when typeof<Collections.ICollection>.IsAssignableFrom(t) -> 
+                fun (obj:obj) -> (obj :?> Collections.ICollection).Count
+            | t when t.GetGenericTypeDefinition() = typedefof<Map<_,_>> ->
+                let mi = 
+                    typedefof<Map<_,_>>
+                        .MakeGenericType(t.GetGenericArguments())
+                        .GetProperty("Count")
+                        .GetGetMethod()
+                fun obj -> mi.Invoke(obj, [||]) |> unbox
+            | _ ->
+                fun (obj:obj) -> 
+                    let mutable count = 0
+                    for _ in obj :?> Collections.IEnumerable do count <- count + 1
+                    count
+        let itemsFun = 
+            match type' with
+            | t when typeof<Collections.IDictionary>.IsAssignableFrom(t) -> 
+                fun (obj:obj) -> 
+                    seq{
+                        for item in (obj :?> Collections.IDictionary) do
+                            item :?> Collections.DictionaryEntry
+                    }
+            | t when t.GetGenericTypeDefinition() = typedefof<Map<_,_>> -> 
+                let mi = 
+                    (getMethodInfo <@ enumerateDict null @>)
+                        .GetGenericMethodDefinition()
+                        .MakeGenericMethod(t.GetGenericArguments())
+                fun obj -> mi.Invoke(null, [|obj|]) :?> Collections.DictionaryEntry seq
+
+            | _ -> failwithf "Map type is not supported: %s" type'.Name
+
+        { new IMapDeconstructor with
+             member _.Size (obj:obj) = sizeFun obj
+             member _.Items (obj:obj) =  itemsFun obj}
+
     let fieldsInfoDict (infos: FieldInfo[]) =
         let dict = Dictionary<string,FieldInfo>()
         for info in infos do
@@ -145,6 +204,16 @@ module internal ReflectionFactoryHelpers =
                 member _.SetValue(v: 'TFieldValue1) = values.[currentField.Idx] <- v :> obj
                 member _.Construct() = ctr values}
 
+    let recordDeconstructor (type':Type) = 
+        let fieldsFun = 
+            match type' with
+            | t when FSharpType.IsRecord t -> FSharpValue.PreComputeRecordReader t
+            | t when FSharpType.IsTuple t -> FSharpValue.PreComputeTupleReader t
+            | _ -> failwithf "Type is not supported as record %s" type'.Name
+        
+        { new IRecordDeconstructor with
+            member _.Fields (obj:obj) = fieldsFun obj}
+
     let someInstanceConstructor (casts: Dictionary<Type, obj -> obj>) (ctr: obj -> obj) (someType: Type) (schema: Schema) =
         let cast = getCast casts someType
         fun () ->
@@ -167,21 +236,40 @@ module internal ReflectionFactoryHelpers =
                 member _.SetKey(key: string) = failwithf "value constructor is not supposed to set a key. But SetKey is called with key='%s'" key
                 member _.SetValue(v: 'TValue) = instance <- cast(v:>obj) }
 
+    let unionDeconstructor (type':Type) =                 
+        let idxMap =
+            FSharpType.GetUnionCases(type')
+            |> Array.mapi (fun idx uci -> uci.Tag,idx)
+            |> Map.ofArray
+        let getTag = FSharpValue.PreComputeUnionTagReader (type')
+        let fieldFuns = 
+            FSharpType.GetUnionCases(type')
+            |> Array.map FSharpValue.PreComputeUnionReader
+
+        { new IUnionDeconstructor with
+            member _.CaseIdx (obj:obj) = idxMap.[getTag obj]
+            member _.CaseFields (idx:int) (obj:obj) = fieldFuns.[idx](obj)}
+
 open ReflectionFactoryHelpers
 
 type InstanceFactory(targetType:Type, rules:CustomRule list) =
 
-    let writeCasts = Dictionary<Type, obj -> obj>() // serialization
-    let readCasts = Dictionary<Type, obj -> obj>() // deserialization
+    let serializationCasts = Dictionary<Type, obj -> obj>() // serialization
+    let deserializationCasts = Dictionary<Type, obj -> obj>() // deserialization
     do for rule in seq {yield! CustomRule.buidInRules; yield! rules} do
-        writeCasts.[rule.TargetType] <- rule.WriteCast
-        readCasts.[rule.TargetType] <- rule.ReadCast
-    
-    let enums = Dictionary<Type,IEnumConstructor>()
-    let unions = Dictionary<Type, Dictionary<string, unit -> IInstanceConstructor>>()
-    let nullables = Dictionary<Type, unit -> IInstanceConstructor>()
+        serializationCasts.[rule.TargetType] <- rule.WriteCast
+        deserializationCasts.[rule.TargetType] <- rule.ReadCast
+
+    let enumConstructors = Dictionary<Type,IEnumConstructor>()
+    let unionConstructors = Dictionary<Type, Dictionary<string, unit -> IInstanceConstructor>>()
+    let nullableConstructors = Dictionary<Type, unit -> IInstanceConstructor>()
     let constructors = Dictionary<Type, unit -> IInstanceConstructor>()
-    
+    let enumDeconstructors = Dictionary<Type, IEnumDeconstructor>()    
+    let arrayDeconstructors = Dictionary<Type, IArrayDeconstructor>()    
+    let mapDeconstructors = Dictionary<Type, IMapDeconstructor>()
+    let recordDeconstructors = Dictionary<Type, IRecordDeconstructor>()
+    let unionDeconstructors = Dictionary<string, IUnionDeconstructor>()
+
     let cache = SchemaCache()
     let rootSchema = 
         match Schema.generateWithCache cache rules targetType with
@@ -211,41 +299,49 @@ type InstanceFactory(targetType:Type, rules:CustomRule list) =
     do for pair in cache do
         match pair.Key, pair.Value with
         | (EnumCacheKey type'), (Enum schema) ->
+            let values = (Enum.GetValues type').Cast<obj>().ToArray()
             let symbols = 
-                (Enum.GetValues type').Cast<obj>().ToArray()
+                values
                 |> Array.map (fun v -> (v.ToString()), v)
                 |> Map.ofArray
                 |> Dictionary
+                        
+            let indexes = Dictionary<obj,int>()
+            values |> Array.iteri(fun idx v -> indexes.[v] <- idx)
             
-            enums.[type'] <-
+            enumConstructors.[type'] <-
                 match schema.Default with
                 | Some str ->
                     let defValue = Enum.Parse(type', str)
                     { new IEnumConstructor with 
                         member _.Construct symbol = match symbols.TryGetValue symbol with true, v -> v | _ -> defValue}
                 | None -> { new IEnumConstructor with member _.Construct symbol = symbols.[symbol]}
+            
+            enumDeconstructors.[type'] <- {new IEnumDeconstructor with member _.Idx obj = indexes.[obj]}
 
         | (ArrayCacheKey type'), (Array schema) ->
             let itemType = arrayElementType type'
             let ctr = arrayConstructor type'
-            constructors.[type'] <- arrayInstanceConstructor readCasts ctr itemType schema
+            constructors.[type'] <- arrayInstanceConstructor deserializationCasts ctr itemType schema
+            arrayDeconstructors.[type'] <- arrayDeconstructor type'
         | (MapCacheKey type'), (Map schema) ->
             let valueType = mapValueType type'
             let ctr = mapConstructor type'
-            constructors.[type'] <- mapInstanceConstructor readCasts ctr valueType schema
+            constructors.[type'] <- mapInstanceConstructor deserializationCasts ctr valueType schema
+            mapDeconstructors.[type'] <- mapDeconstructor type'
         | (RecordCacheKey type'),(Record schema) -> 
             if FSharpType.IsRecord type' then 
                 let fieldsInfo =
                     FSharpType.GetRecordFields type' 
                     |> Array.map (fun pi -> pi.PropertyType)
-                    |> fieldsInfo readCasts schema.Fields
+                    |> fieldsInfo deserializationCasts schema.Fields
                 let ctr = constructor fieldsInfo (FSharpValue.PreComputeRecordConstructor type')
                 let fields = fieldsInfoDict fieldsInfo
                 constructors.[type'] <- recordInstanceConstructor ctr fields schema            
             else if FSharpType.IsTuple type' then 
                 let fieldsInfo =
                     FSharpType.GetTupleElements type'
-                    |> fieldsInfo readCasts schema.Fields
+                    |> fieldsInfo deserializationCasts schema.Fields
                 let ctr = constructor fieldsInfo (FSharpValue.PreComputeTupleConstructor type')
                 let fields = 
                     fieldsInfo 
@@ -254,6 +350,7 @@ type InstanceFactory(targetType:Type, rules:CustomRule list) =
                     |> Dictionary
                 constructors.[type'] <- recordInstanceConstructor ctr fields schema            
             else failwithf "Type is not supported as record %A Schema: %A" type' schema
+            recordDeconstructors.[type'] <- recordDeconstructor type'
         | (UnionCaseCacheKey (type', caseName)),(Record schema) -> 
             let uci = 
                 FSharpType.GetUnionCases(type') 
@@ -261,42 +358,54 @@ type InstanceFactory(targetType:Type, rules:CustomRule list) =
             let fieldsInfo =
                 uci.GetFields() 
                 |> Array.map (fun pi -> pi.PropertyType)
-                |> fieldsInfo readCasts schema.Fields
+                |> fieldsInfo deserializationCasts schema.Fields
             let ctr = constructor fieldsInfo (FSharpValue.PreComputeUnionConstructor uci)
             let fields = fieldsInfoDict fieldsInfo
             let instanceCtr = recordInstanceConstructor ctr fields schema           
 
             let dict = 
-                match unions.TryGetValue type' with
+                match unionConstructors.TryGetValue type' with
                 | true, dict -> dict
                 | _ -> Dictionary<string, unit -> IInstanceConstructor>()
             dict.[schema.Name] <- instanceCtr
             for alias in schema.Aliases do dict.[alias] <- instanceCtr
-            unions.[type'] <- dict
+            unionConstructors.[type'] <- dict
+
+            unionDeconstructors.[schema.Name] <- unionDeconstructor type'
+
         | (NullableCacheKey type'), schema -> 
             let someUci = (FSharpType.GetUnionCases type').[1] // Option.Some
             let someCtr = FSharpValue.PreComputeUnionConstructor someUci
             let ctr = fun v -> someCtr [|v|]
             let someType = (someUci.GetFields().[0]).PropertyType
-            nullables.[type'] <- someInstanceConstructor readCasts ctr someType schema
+            nullableConstructors.[type'] <- someInstanceConstructor deserializationCasts ctr someType schema
+
+            let someReader = FSharpValue.PreComputeUnionReader someUci
+            serializationCasts.[type'] <- fun (obj:obj) -> (someReader obj).[0]
+
         | (CustomCacheKey _), _ -> ()
         | type' -> failwithf "Cann't process type: %A" type'
     
     interface IInstanceFactory with
-
         member _.TargetSchema = rootSchema
-
         member _.TargetType = targetType
-
-        member _.CreateConstructor(type':Type) = constructors.[type']()
-
-        member _.CreateNullableConstructor(type':Type) = nullables.[type']()
-
-        member _.CreateValueConstructor(type': Type, schema: Schema) = (valueInstanceCtr readCasts type' schema)()
-        
-        member _.CreateEnumConstructor(type': Type, schema: EnumSchema) = enums.[type']
-        
-        member _.CreateUnionConstructor(type':Type, recordName:string) = 
-            match unions.[type'].TryGetValue recordName with
+        member _.Constructor(type':Type) = constructors.[type']()
+        member _.NullableConstructor(type':Type) = nullableConstructors.[type']()
+        member _.ValueConstructor(type': Type, schema: Schema) = (valueInstanceCtr deserializationCasts type' schema)()
+        member _.EnumConstructor(type': Type, schema: EnumSchema) = enumConstructors.[type']
+        member _.UnionConstructor(type':Type, recordName:string) = 
+            match unionConstructors.[type'].TryGetValue recordName with
             | true, ctr -> ctr()
             | _ -> failwithf "union case '%s' for %A not found" recordName type'
+        member _.EnumDeconstructor(targetObj: obj) = enumDeconstructors.[targetObj.GetType()]
+        member _.ArrayDeconstructor(targetObj: obj) = arrayDeconstructors.[targetObj.GetType()]
+        member _.MapDeconstructor(targetObj: obj) = mapDeconstructors.[targetObj.GetType()]
+        member _.RecordDeconstructor(targetObj: obj) = recordDeconstructors.[targetObj.GetType()]
+        member _.UnionDeconstructor(recordName: string) = unionDeconstructors.[recordName]
+        member _.SerializationCast(targetObj: obj): obj -> obj = 
+            match targetObj with
+            | null -> id
+            | _ ->
+                match serializationCasts.TryGetValue (targetObj.GetType()) with
+                | true, cast -> cast
+                | _ -> id

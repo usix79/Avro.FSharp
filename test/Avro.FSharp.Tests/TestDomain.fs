@@ -4,9 +4,9 @@ open Avro.FSharp.Annotations
 
 
 type TestState =
-    | Red = 3
-    | Yellow = 2
-    | Green = 1
+    | Red = 2
+    | Yellow = 1
+    | Green = 0
 
 type SimpleRecord = {
     Id : int

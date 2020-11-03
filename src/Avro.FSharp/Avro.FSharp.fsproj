@@ -32,6 +32,7 @@
     <Compile Include="Writer.fs" />
     <Compile Include="Schema.fs" />
     <Compile Include="Abstractions.fs" />
+    <Compile Include="BinaryImpl.fs" />
     <Compile Include="JsonImpl.fs" />
     <Compile Include="InstanceImpl.fs" />
     <Compile Include="InstanceFactory.fs" />
