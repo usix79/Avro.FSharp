@@ -257,8 +257,8 @@ type InstanceFactory(targetType:Type, rules:CustomRule list) =
     let serializationCasts = Dictionary<Type, obj -> obj>()
     let deserializationCasts = Dictionary<Type, obj -> obj>()
     do for rule in seq {yield! CustomRule.buidInRules; yield! rules} do
-        serializationCasts.[rule.TargetType] <- rule.WriteCast
-        deserializationCasts.[rule.TargetType] <- rule.ReadCast
+        serializationCasts.[rule.TargetType] <- rule.SerializationCast
+        deserializationCasts.[rule.TargetType] <- rule.DeserializationCast
 
     let enumConstructors = Dictionary<Type,IEnumConstructor>()
     let unionConstructors = Dictionary<Type, Dictionary<string, unit -> IInstanceConstructor>>()
