@@ -34,7 +34,7 @@ type BinaryDirector() =
             member _.StartMapBlock(size: int64): unit = ()
             member _.StartRecord(): unit = ()
             member _.StartSomeCase(arg1: Schema): unit = ()
-            member _.StartUnionCase(caseIdx: int, caseName: string): unit = ()
+            member _.StartUnionCase(caseIdx: int, caseName: string): bool = false
             member _.String(v: string): unit = ()}
 
     member _.Construct(reader:BinaryReader, writerSchema: Schema, builder:IAvroBuilder) =
@@ -110,7 +110,7 @@ type BinaryDirector() =
                 let idx = reader.ReadInt32()
                 match schemas.[idx] with
                 | Record schema ->
-                    builder.StartUnionCase(idx, schema.Name)
+                    let builder = if builder.StartUnionCase(idx, schema.Name) then builder else dummyBuilder
                     for field in schema.Fields do
                         write
                             (if builder.Field field.Name then builder else dummyBuilder)
@@ -150,7 +150,9 @@ type BinaryBuilder(writer:BinaryWriter) =
         member _.StartRecord() = ()
         member _.Field(name: string) = true
         member _.EndRecord() = ()
-        member _.StartUnionCase(caseIdx: int, caseName: string) = writer.Write(caseIdx)
+        member _.StartUnionCase(caseIdx: int, caseName: string) =
+            writer.Write(caseIdx)
+            true
         member _.EndUnionCase() = ()
         member _.NoneCase() = writer.Write(0)
         member _.StartSomeCase(schema: Schema) = writer.Write(1)

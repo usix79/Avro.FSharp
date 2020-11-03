@@ -111,6 +111,7 @@ let evolutionCases = [
     evolutionCase "Added string field" ({Id=456}:RecordWithId) ({Id=456; NewField="Hello" }:RecordWithNewField)
     evolutionCase "New Record" ({Id=456; Title="Hello World!!!"}:OldRecord) ({Id=456; Caption="Hello World!!!"; Description="Not Yet Described"}:NewRecord)
     evolutionCase "New Enum" (TestState.Green) (NewTestState.Blue)
+    evolutionCase "UnknownUnion in Record" ({Union = Case3}:RecordV2) ({Union = UnionV1.UnknownCase}:RecordV1)
 ]
 
 let jsonSimpleTest (case:SimpleCase) =

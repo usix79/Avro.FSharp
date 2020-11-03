@@ -7,13 +7,13 @@ type IAvroBuilder =
     abstract Start: unit -> unit
 
     abstract Null: unit -> unit
-    abstract Boolean: v:bool -> unit 
-    abstract Int: v:int -> unit 
-    abstract Long: v:int64 -> unit 
-    abstract Float: v:float32 -> unit 
-    abstract Double: v:float -> unit 
-    abstract String: v:string -> unit 
-    abstract Bytes: v:byte array -> unit 
+    abstract Boolean: v:bool -> unit
+    abstract Int: v:int -> unit
+    abstract Long: v:int64 -> unit
+    abstract Float: v:float32 -> unit
+    abstract Double: v:float -> unit
+    abstract String: v:string -> unit
+    abstract Bytes: v:byte array -> unit
     abstract Decimal: v:decimal*schema:DecimalSchema -> unit
 
     abstract StartRecord: unit -> unit
@@ -31,20 +31,20 @@ type IAvroBuilder =
 
     abstract Enum: idx:int*symbol:string -> unit
 
-    abstract StartUnionCase: caseIdx:int*caseName:string -> unit
+    abstract StartUnionCase: caseIdx:int*caseName:string -> bool
     abstract EndUnionCase: unit -> unit
 
     abstract NoneCase: unit -> unit
     abstract StartSomeCase: Schema -> unit
     abstract EndSomeCase: unit -> unit
 
-    abstract Fixed: v:byte array -> unit 
+    abstract Fixed: v:byte array -> unit
 
     abstract End: unit -> unit
 
 type IAvroBuilderWithSchema =
     inherit IAvroBuilder
-    
+
     abstract ExpectedValueSchema : Schema
 
 type IInstanceConstructor =
@@ -78,16 +78,17 @@ type IUnionDeconstructor =
 type IInstanceFactory =
     abstract TargetSchema: Schema
     abstract TargetType: Type
-    
+
     abstract Constructor: Type -> IInstanceConstructor
     abstract NullableConstructor: Type -> IInstanceConstructor
     abstract ValueConstructor: Type*Schema -> IInstanceConstructor
-    abstract UnionConstructor: Type*string -> IInstanceConstructor    
+    abstract IsKnownUnionCase: Type*string -> bool
+    abstract UnionConstructor: Type*string -> IInstanceConstructor
     abstract EnumConstructor: Type*EnumSchema -> IEnumConstructor
-    
+
     abstract SerializationCast: obj -> (obj -> obj)
     abstract EnumDeconstructor: obj -> IEnumDeconstructor
     abstract ArrayDeconstructor: obj -> IArrayDeconstructor
     abstract MapDeconstructor: obj -> IMapDeconstructor
     abstract RecordDeconstructor: obj -> IRecordDeconstructor
-    abstract UnionDeconstructor: recordName:string -> IUnionDeconstructor        
+    abstract UnionDeconstructor: recordName:string -> IUnionDeconstructor

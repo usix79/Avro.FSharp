@@ -287,6 +287,7 @@ type InstanceFactory(targetType:Type, rules:CustomRule list) =
                 Default =
                     match schema.Default with
                     | Some str ->
+                        printfn "TYPE: %A" type'
                         let factory = new InstanceFactory(type', rules)
                         let builder = InstanceBuilder(factory)
                         let director = JsonDirector()
@@ -393,6 +394,7 @@ type InstanceFactory(targetType:Type, rules:CustomRule list) =
         member _.NullableConstructor(type':Type) = nullableConstructors.[type']()
         member _.ValueConstructor(type': Type, schema: Schema) = (valueInstanceCtr deserializationCasts type' schema)()
         member _.EnumConstructor(type': Type, schema: EnumSchema) = enumConstructors.[type']
+        member _.IsKnownUnionCase(type':Type, recordName:string) = unionConstructors.[type'].ContainsKey recordName
         member _.UnionConstructor(type':Type, recordName:string) =
             match unionConstructors.[type'].TryGetValue recordName with
             | true, ctr -> ctr()

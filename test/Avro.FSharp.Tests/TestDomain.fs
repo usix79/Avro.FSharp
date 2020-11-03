@@ -37,14 +37,14 @@ type RecordWithId = {
     Id : int
 }
 
-[<Aliases[|"Foo.Bar.RecordWithId"|]>] 
+[<Aliases[|"Foo.Bar.RecordWithId"|]>]
 type RecordWithNewId = {
     Id : int
     //[<DefaultValue("null")>]
     NewId: int option
 }
 
-[<Aliases[|"Foo.Bar.RecordWithId"|]>] 
+[<Aliases[|"Foo.Bar.RecordWithId"|]>]
 type RecordWithNewField = {
     Id : int
     [<DefaultValue("Hello")>]
@@ -78,16 +78,16 @@ type OldRecord = {
 }
 
 
-[<Aliases[|"Foo.Bar.OldRecord"|]>] 
+[<Aliases[|"Foo.Bar.OldRecord"|]>]
 type NewRecord = {
     Id : int
-    [<Aliases [|"Title"; "Cap"|]>] 
+    [<Aliases [|"Title"; "Cap"|]>]
     Caption: string
     [<DefaultValue "Not Yet Described">]
     Description : string
 }
 
-[<Aliases[|"Foo.Bar.TestState"|];DefaultValue("Blue")>] 
+[<Aliases[|"Foo.Bar.TestState"|];DefaultValue("Blue")>]
 type NewTestState =
     | Red = 3
     | Yellow = 2
@@ -107,10 +107,10 @@ type Quantity = decimal<Q>
 
 type Product = Code * Name * UnitPrice
 
-type Tender = 
-  | Cash 
-  | Card of string 
-  | Voucher of Code 
+type Tender =
+  | Cash
+  | Card of string
+  | Voucher of Code
 
 type LineItem =
   | SaleItem of Product * Quantity
@@ -118,3 +118,24 @@ type LineItem =
   | CancelItem of int
 
 type Basket = list<LineItem>
+
+// Union evolution
+
+type UnionV1 =
+    | UnknownCase
+    | Case1
+
+type RecordV1 = {
+    [<DefaultValue """{"Foo.Bar.UnionV1.UnknownCase": {}}""">]
+    Union : UnionV1
+}
+
+type UnionV2 =
+    | UnknownCase
+    | Case1
+    | Case2
+    | Case3
+
+type RecordV2 = {
+    Union : UnionV2
+}
