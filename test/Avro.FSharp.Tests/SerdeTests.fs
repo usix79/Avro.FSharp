@@ -1,160 +1,91 @@
-module SerdeTests
+module Avro.FSharp.SerdeTests
 
-open System.IO
-open System.Collections.Generic
 open System.Linq
-open Avro
-open Avro.IO
-open Avro.FSharp
+open System.Collections.Generic
+open System.IO
+open System.Text.Json
 open Expecto
 open Expecto.Flip
+open Avro.FSharp
 open Foo.Bar
 
+type Comparer = string -> obj -> obj -> unit
+type SimpleCase = {Name: string; Instance: obj; InstanceType: System.Type; Comparer: Comparer }
+type SimpleCaseList = {Name: string; Cases: SimpleCase list}
+type EvolutionCase = {Name: string; Instance: obj; InstanceType: System.Type; ExpectedInstance: obj; Comparer: Comparer }
 
-let genTest'<'T> comparer name (data:'T)  =
-    test name {
-        match Schema.generateWithReflector [] typeof<'T> with
-        | Ok (schema, reflector) -> 
-            let schema = Schema.Parse(schema |> Schema.toString)
-            let writer = FSharpWriter<'T>(schema, reflector)                
-            use writerStream = new MemoryStream(256)
-            writer.Write(data, BinaryEncoder(writerStream))
+let simpleCase'<'T> comparer name (instance:'T) =
+    {Name = name; Comparer = comparer; Instance = instance; InstanceType = typeof<'T>}
 
-            use readerStream = new MemoryStream(writerStream.ToArray())
-            let reader = FSharpReader<'T>(schema, schema, reflector)
-            let deserializedData = reader.Read(Unchecked.defaultof<'T>, BinaryDecoder(readerStream))
-            comparer "Deserialized data should be equal to original" data deserializedData
-        | Error err -> failwithf "Schema error %A" err 
-    }
+let simpleCase<'T when 'T:equality> name (instance:'T) =
+    {Name = name; Comparer = (fun msg v1 v2 -> Expect.equal msg (v1:?>'T) (v2:?>'T)); Instance = instance; InstanceType = typeof<'T>}
 
-let genTest<'T when 'T : equality>  = genTest'<'T> Expect.equal 
-let compareSequences msg expected actual = Expect.isTrue msg <| System.Linq.Enumerable.SequenceEqual(expected, actual)
-let compareDictionaries<'TKey,'TValue> msg (expected:Dictionary<'TKey,'TValue>) (actual:Dictionary<'TKey,'TValue>) = 
-    compareSequences msg (expected.OrderBy(fun kv -> kv.Key).ToList()) (actual.OrderBy(fun kv -> kv.Key).ToList())
+let simpleCaseList name cases = {Name = name; Cases = cases}
 
-let genEvolutionTest<'TSource, 'TDest when 'TDest:equality>  name (data:'TSource) (expectedData:'TDest) =
-    test name {
-        match Schema.generateWithReflector [] typeof<'TSource> with
-        | Ok (writerSchema, reflector) -> 
-            let writerSchema = Schema.Parse(writerSchema |> Schema.toString)
-            let writer = FSharpWriter<'TSource>(writerSchema, reflector)                
-            use writerStream = new MemoryStream(256)
-            writer.Write(data, BinaryEncoder(writerStream))
+let compareSequences<'T> msg (expected:obj) (actual:obj) =
+    Expect.isTrue msg <| System.Linq.Enumerable.SequenceEqual((expected :?> IEnumerable<'T>), (actual :?> IEnumerable<'T>))
 
-            match Schema.generateWithReflector [] typeof<'TDest> with
-            | Ok (readerSchema, reflector) -> 
-                let readerSchema = Schema.Parse(readerSchema |> Schema.toString)
-                use readerStream = new MemoryStream(writerStream.ToArray())
-                let reader = FSharpReader<'TDest>(writerSchema, readerSchema, reflector)
-                let deserializedData = reader.Read(Unchecked.defaultof<'TDest>, BinaryDecoder(readerStream))
-                Expect.equal "Deserialized data should be equal to original" expectedData deserializedData
-            | Error err -> failwithf "Reader Schema error %A" err 
-        | Error err -> failwithf "Writer Schema error %A" err 
-    }
+let compareDictionaries<'TKey,'TValue> msg (expected:obj) (actual:obj) =
+    compareSequences<KeyValuePair<'TKey,'TValue>> msg ((expected :?> Dictionary<'TKey,'TValue>).OrderBy(fun kv -> kv.Key).ToList()) ((actual :?> Dictionary<'TKey,'TValue>).OrderBy(fun kv -> kv.Key).ToList())
 
-[<Tests>]
-let primitiveTests =
-    testList "Primitive" [
-        genTest "string" "Hello World!!!"
-        genTest "empty string" ""
-        genTest "bool true" true
-        genTest "bool false" false
-        genTest "int" 125
-        genTest "float" 543.
-        genTest "long" 789L
-        genTest "float32" 101.2f
-    ]|> testLabel "Serde"    
+let evolutionCase<'TSource, 'TDest when 'TDest:equality> name (instance:'TSource) (expectedInstance:'TDest) =
+    {Name = name; Comparer = (fun msg v1 v2 -> Expect.equal msg (v1:?>'TDest) (v2:?>'TDest)); Instance = instance; InstanceType = typeof<'TSource>; ExpectedInstance = expectedInstance}
 
-[<Tests>]
-let enumTests =
-    testList "Enum" [
-        genTest "SimpleEnum" TestState.Green
-    ]|> testLabel "Serde"
-
-[<Tests>]
-let arrayTests =
-    testList "Array" [
-        genTest "List" ["One"; "Two"; "Three"]
-        genTest "Array" [|"One"; "Two"; "Three"|]
-        genTest' compareSequences "Collection" (List(["One"; "Two"; "Three"])) 
-        genTest "RecordWithArray" {Value = ["Name1"; "Name2"; "Name3"]}
-            
-    ]|> testLabel "Serde"
-
-[<Tests>]
-let mapTests =
-    testList "Map" [
+let simpleCases = [
+    simpleCaseList "Primitive" [
+        simpleCase "string" "Hello World!!!"
+        simpleCase "empty string" ""
+        simpleCase "bool true" true
+        simpleCase "bool false" false
+        simpleCase "int" 125
+        simpleCase "float" 543.
+        simpleCase "long" 789L
+        simpleCase "float32" 101.2f
+    ]
+    simpleCaseList "Enum" [
+        simpleCase "SimpleEnum" TestState.Green
+    ]
+    simpleCaseList "Array" [
+        simpleCase "List" ["One"; "Two"; "Three"]
+        simpleCase "Array" [|"One"; "Two"; "Three"|]
+        simpleCase' compareSequences "Collection" (List(["One"; "Two"; "Three"]))
+        simpleCase "RecordWithArray" {Value = ["Name1"; "Name2"; "Name3"]}
+    ]
+    simpleCaseList "Map" [
         let pairs = ["One", 1; "Two", 2; "Three", 3]
-        
-        genTest "Map" (pairs |> Map.ofList)
-        
+
+        simpleCase "Map" (pairs |> Map.ofList)
+
         let dict = Dictionary<string,int>()
-        pairs |> Seq.iter dict.Add        
-        genTest' compareDictionaries "Dictionary" dict 
-        
-        genTest "RecordWithMap" {Value = pairs |> Map.ofList}
-            
-    ]|> testLabel "Serde"
+        pairs |> Seq.iter dict.Add
+        simpleCase' compareDictionaries<string, int32> "Dictionary" dict
 
-[<Tests>]
-let recordTests =
-    testList "Record" [
+        simpleCase "RecordWithMap" {Value = pairs |> Map.ofList}
+    ]
+    simpleCaseList "Record" [
         let record = {Id = 1; Name = "Hello World!!!"; Version = 2L}
-        genTest "SimpleRecord" record
-        genTest "HierarcyRecord" {Title = "Top"; Details = record; IsProcessed = true}
-    ]|> testLabel "Serde"
-
-[<Tests>]
-let unionTests =
-    testList "Union" [
-        genTest "Option-Some" (Some "Hello World!!!")
-        genTest "Option-None" (None:Option<string>)
-        genTest "Result Ok" ((Ok "Hello"):Result<string,string>)
-        genTest "Result Error" ((Error "Hello"):Result<string,string>)
-        let tree = Node (Leaf "XXX", Node (Leaf "YYY", Leaf "ZZZ"))
-        genTest "BinaryTree" tree
-        genTest "ItemRecord" {Id = 123; Name ="Item"; Price = Price 9.99m}
-        
-    ]|> testLabel "Serde"
-
-[<Tests>]
-let tupleTests =
-    testList "Tuple" [
-        genTest "Tuple" (123, "Hello")        
-        genTest "Tuple Record" {Value = (123, "Hello")}
-    ]|> testLabel "Serde"
-
-[<Tests>]
-let logicalTypesTests =
-    testList "LogicalTypes" [
-        genTest "Decimal" 3.1415926m
-        genTest "Scaled Decimal" {Id = 124; Caption = ""; Price = 199.99m}        
-    ]|> testLabel "Serde"    
-
-[<Tests>]
-let customTypesTests =
-    testList "CustomTypes" [
-        genTest "Single Guid" (System.Guid.NewGuid())
-        genTest "Guid" {Value = System.Guid.NewGuid()}
-        genTest "Uri" {Value = System.Uri("http://www.example.com")}
-        genTest "DateTime" {Value = System.DateTime.UtcNow}
-        genTest "DateTimeOffset" {Value = System.DateTimeOffset.UtcNow}
-        genTest "TimeSpan" {Value = System.TimeSpan.FromSeconds(321.5)}
-        
-    ]|> testLabel "Serde"    
-
-[<Tests>]
-let evolutionTests =
-    testList "EvolutionTests" [
-        genEvolutionTest "Added string field" ({Id=456}:RecordWithId) ({Id=456; NewField="Hello" }:RecordWithNewField)
-        genEvolutionTest "New Record" ({Id=456; Title="Hello World!!!"}:OldRecord) ({Id=456; Caption="Hello World!!!"; Description="Not Yet Described"}:NewRecord)
-        //genEvolutionTest "New Enum" (TestState.Green) (NewTestState.Blue)
-
-    ]|> testLabel "Serde"
-
-[<Tests>]
-let complexTests =
-    testList "ComplexTests" [
+        simpleCase "SimpleRecord" record
+        simpleCase "HierarcyRecord" {Title = "Top"; Details = record; IsProcessed = true}
+    ]
+    simpleCaseList "Tuple" [
+        simpleCase "Tuple" (123, "Hello")
+        simpleCase "Tuple Record" {Value = (123, "Hello")}
+    ]
+    simpleCaseList "Union" [
+        simpleCase "Result Ok" ((Ok "Hello"):Result<string,string>)
+        simpleCase "Result Error" ((Error "Hello"):Result<string,string>)
+        simpleCase "BinaryTree" (Node (Leaf "XXX", Node (Leaf "YYY", Leaf "ZZZ")))
+    ]
+    simpleCaseList "Nullable" [
+        simpleCase "Option-Some" (Some "Hello World!!!")
+        simpleCase "Option-None" (None:Option<string>)
+    ]
+    simpleCaseList "LogicalTypes" [
+        simpleCase "Decimal" 3.1415926m
+        simpleCase "Scaled Decimal" {Id = 124; Caption = ""; Price = 199.99m}
+        simpleCase "ItemRecord" {Id = 123; Name ="Item"; Price = Price 9.99m}
+    ]
+    simpleCaseList "ComplexTests" [
         let basket:Basket = [
             SaleItem (Product("XXX-1", "Product 1", 10m<GBP/Q>), 1m<Q>)
             SaleItem (Product("XXX-2", "Product 2", 1m<GBP/Q>), 10m<Q>)
@@ -163,6 +94,136 @@ let complexTests =
             TenderItem ((Card "1111-1111-1111-1111"), 15m<GBP>)
             CancelItem 2
         ]
-        genTest "Basket" basket
+        simpleCase "Basket" basket
+    ]
+    simpleCaseList "CustomTypes" [
+        simpleCase "Single Guid" (System.Guid.NewGuid())
+        simpleCase "Guid" {Value = System.Guid.NewGuid()}
+        simpleCase "Uri" {Value = System.Uri("http://www.example.com")}
+        simpleCase "DateTime" {Value = System.DateTime.UtcNow}
+        simpleCase "DateTimeOffset" {Value = System.DateTimeOffset.UtcNow}
+        simpleCase "TimeSpan" {Value = System.TimeSpan.FromSeconds(321.5)}
 
-    ]|> testLabel "Serde"   
+    ]
+]
+
+let evolutionCases = [
+    evolutionCase "Added string field" ({Id=456}:RecordWithId) ({Id=456; NewField="Hello" }:RecordWithNewField)
+    evolutionCase "New Record" ({Id=456; Title="Hello World!!!"}:OldRecord) ({Id=456; Caption="Hello World!!!"; Description="Not Yet Described"}:NewRecord)
+    evolutionCase "New Enum" (TestState.Green) (NewTestState.Blue)
+]
+
+let jsonSimpleTest (case:SimpleCase) =
+    test case.Name {
+        let factory = InstanceFactory(case.InstanceType, [])
+
+        let instanceDirector = InstanceDirector(factory)
+        use stream = new MemoryStream()
+        use writer = new Utf8JsonWriter(stream)
+        let jsonBuilder = JsonBuilder(writer)
+        instanceDirector.Construct(case.Instance, jsonBuilder)
+
+        let data = stream.ToArray()
+
+        //printfn "Serialization result: %s" (System.Text.Encoding.UTF8.GetString(data, 0, data.Length))
+
+        let instanceBuilder = InstanceBuilder(factory)
+        let jsonDirector = JsonDirector()
+        use stream = new MemoryStream(data)
+        jsonDirector.Construct(stream, instanceBuilder)
+
+        let copy = instanceBuilder.Instance
+
+        case.Comparer "Copy should be equal to original" case.Instance copy
+    }
+
+let jsonEvolutionTest (case:EvolutionCase) =
+    test case.Name {
+        let factory = InstanceFactory(case.InstanceType, [])
+
+        let instanceDirector = InstanceDirector(factory)
+        use stream = new MemoryStream()
+        use writer = new Utf8JsonWriter(stream)
+        let jsonBuilder = JsonBuilder(writer)
+        instanceDirector.Construct(case.Instance, jsonBuilder)
+
+        let data = stream.ToArray()
+
+        let destFactory = InstanceFactory(case.ExpectedInstance.GetType(), [])
+        let instanceBuilder = InstanceBuilder(destFactory)
+        let jsonDirector = JsonDirector()
+        use stream = new MemoryStream(data)
+        jsonDirector.Construct(stream, instanceBuilder)
+
+        case.Comparer "Deserialized data should be equal to original" case.ExpectedInstance instanceBuilder.Instance
+    }
+
+[<Tests>]
+let jsonSimpleCasesTests =
+    simpleCases
+    |> List.map (fun list -> testList list.Name (list.Cases |> List.map jsonSimpleTest))
+    |> testList "Json"
+
+[<Tests>]
+let jsonEvolutionCasesTests =
+    evolutionCases
+    |> List.map jsonEvolutionTest
+    |> testList "Json"
+
+
+let binarySimpleTest (case:SimpleCase) =
+    test case.Name {
+        let factory = InstanceFactory(case.InstanceType, [])
+
+        let director = InstanceDirector(factory)
+        use stream = new MemoryStream()
+        use writer = new BinaryWriter(stream, System.Text.Encoding.UTF8)
+        let builder = BinaryBuilder(writer)
+        director.Construct(case.Instance, builder)
+
+        let data = stream.ToArray()
+
+        let instanceBuilder = InstanceBuilder(factory)
+        let binaryDirector = BinaryDirector()
+        use stream = new MemoryStream(data)
+        use reader = new BinaryReader(stream)
+        binaryDirector.Construct(reader, (factory :> IInstanceFactory).TargetSchema, instanceBuilder)
+
+        let copy = instanceBuilder.Instance
+
+        case.Comparer "Copy should be equal to original" case.Instance copy
+    }
+
+let binaryEvolutionTest (case:EvolutionCase) =
+    test case.Name {
+        let factory = InstanceFactory(case.InstanceType, [])
+
+        let instanceDirector = InstanceDirector(factory)
+        use stream = new MemoryStream()
+        use writer = new BinaryWriter(stream, System.Text.Encoding.UTF8)
+        let binaryBuilder = BinaryBuilder(writer)
+        instanceDirector.Construct(case.Instance, binaryBuilder)
+
+        let data = stream.ToArray()
+
+        let destFactory = InstanceFactory(case.ExpectedInstance.GetType(), [])
+        let instanceBuilder = InstanceBuilder(destFactory)
+        let binaryDirector = BinaryDirector()
+        use stream = new MemoryStream(data)
+        use reader = new BinaryReader(stream)
+        binaryDirector.Construct(reader, (factory :> IInstanceFactory).TargetSchema, instanceBuilder)
+
+        case.Comparer "Deserialized data should be equal to original" case.ExpectedInstance instanceBuilder.Instance
+    }
+
+[<Tests>]
+let binarySimpleCasesTests =
+    simpleCases
+    |> List.map (fun list -> testList list.Name (list.Cases |> List.map binarySimpleTest))
+    |> testList "Binary"
+
+[<Tests>]
+let binaryEvolutionCasesTests =
+    evolutionCases
+    |> List.map binaryEvolutionTest
+    |> testList "Binary"
