@@ -7,12 +7,11 @@ open Confluent.SchemaRegistry
 open Avro.FSharp
 
 type ExampleSerializer<'T> (schemaSubject:string, schemaRegistryClient: ISchemaRegistryClient) =
-    let writer,schema = 
-        match Schema.generateWithReflector [] typeof<'T> with
-        | Ok (schema,reflector) -> FSharpWriter<'T>(Avro.Schema.Parse(schema |> Schema.toString), reflector),schema
-        | Error err -> failwithf "SchemaError: %A" err
+    let factory = InstanceFactory(typeof<'T>, []) :> IInstanceFactory
+    let director = InstanceDirector(factory)
 
-    let schemaId = schemaRegistryClient.RegisterSchemaAsync(schemaSubject, Schema(schema |> Schema.toString, SchemaType.Avro)).Result
+    let schema = Schema(factory.TargetSchema |> Schema.toString, SchemaType.Avro)
+    let schemaId = schemaRegistryClient.RegisterSchemaAsync(schemaSubject, schema).Result
 
     let prefix = [|
         0uy // magic Byte
@@ -23,7 +22,9 @@ type ExampleSerializer<'T> (schemaSubject:string, schemaRegistryClient: ISchemaR
     interface IAsyncSerializer<'T> with
         member _.SerializeAsync(data: 'T, _: SerializationContext): Task<byte []> = 
             Task.Run(fun () -> 
-                use writerStream = new MemoryStream(1024)
-                writerStream.Write(prefix, 0, 5)                
-                writer.Write(data, Avro.IO.BinaryEncoder(writerStream))                
-                writerStream.ToArray())
+                use stream = new MemoryStream(1024)
+                stream.Write(prefix, 0, 5)                
+                use writer = new BinaryWriter(stream, System.Text.Encoding.UTF8)
+                let builder = BinaryBuilder(writer)
+                director.Construct(data, builder)
+                stream.ToArray())

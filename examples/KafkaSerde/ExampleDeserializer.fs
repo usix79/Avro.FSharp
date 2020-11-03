@@ -10,12 +10,10 @@ open Confluent.SchemaRegistry
 open Avro.FSharp
 
 type ExampleDeserializer<'T> (schemaRegistryClient: ISchemaRegistryClient) =
-    let readerSchema, reflector = 
-        match Schema.generateWithReflector [] typeof<'T> with
-        | Ok (schema,reflector) -> Avro.Schema.Parse(schema |> Schema.toString), reflector
-        | Error err -> failwithf "SchemaError: %A" err
+    let factory = InstanceFactory(typeof<'T>, [])
+    let director = BinaryDirector()
 
-    let readersCache = ConcurrentDictionary<int, FSharpReader<'T>>()
+    let schemasCache = ConcurrentDictionary<int, Schema>()
 
     let readSchemaId (stream:Stream) =
         let magicByte = stream.ReadByte()
@@ -32,18 +30,21 @@ type ExampleDeserializer<'T> (schemaRegistryClient: ISchemaRegistryClient) =
         let writerSchemaResult = schemaRegistryClient.GetSchemaAsync(writerSchemaId).Result
         if writerSchemaResult.SchemaType <> SchemaType.Avro then
             failwithf "Expecting writer schema to have type Avro, not %A" writerSchemaResult.SchemaType
-        
-        let writerSchema = Avro.Schema.Parse(writerSchemaResult.SchemaString)
-        FSharpReader<'T>(writerSchema, readerSchema, reflector)
+
+        Schema.ofString writerSchemaResult.SchemaString
 
     interface IDeserializer<'T> with
-        member _.Deserialize(data:ReadOnlySpan<byte>, isNull:bool, context:SerializationContext): 'T =             
+        member _.Deserialize(data:ReadOnlySpan<byte>, isNull:bool, context:SerializationContext): 'T =
             try
                 use stream = new UnmanagedMemoryStream(&&data.GetPinnableReference(), int64 data.Length)
                 let writerSchemaId = readSchemaId stream
-                let reader = readersCache.GetOrAdd(writerSchemaId, getWriterSchema)
-                reader.Read(Unchecked.defaultof<'T>, Avro.IO.BinaryDecoder(stream))
-            with 
-            | ex -> 
+                let writerSchema = schemasCache.GetOrAdd(writerSchemaId, getWriterSchema)
+                use reader = new BinaryReader(stream)
+                let builder = InstanceBuilder(factory)
+                director.Construct(reader, writerSchema, builder)
+
+                builder.Instance :?> 'T
+            with
+            | ex ->
                 printfn "EXCEPTION %A" ex
                 raise ex
