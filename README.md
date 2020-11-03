@@ -247,9 +247,9 @@ Reading of a map will be successful if corresponding type is:
 
 ## Issues of Json implementation
 
-### byte array is encoded to base64 string
+### byte array is encoded as base64 string
 
-### decimal is encoded to number
+### decimal is encoded as number
 
 # Forward Compatibility of Descriminated Unions
 
