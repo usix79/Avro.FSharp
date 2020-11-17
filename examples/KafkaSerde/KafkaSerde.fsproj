@@ -4,7 +4,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Avro.FSharp\Avro.FSharp.fsproj" />
+    <ProjectReference Include="..\..\src\Avro.FSharp.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ExampleSerializer.fs" />

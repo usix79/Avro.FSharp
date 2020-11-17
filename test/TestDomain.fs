@@ -1,7 +1,5 @@
 module Foo.Bar
 
-open Avro.FSharp.Annotations
-
 
 type TestState =
     | Red = 2
@@ -19,12 +17,6 @@ type ParentRecord = {
     Chield2 : SimpleRecord
 }
 
-type HierarchyRecord = {
-    Title: string
-    Details: SimpleRecord
-    IsProcessed: bool
-}
-
 type Price = Price of decimal
 
 type ItemRecord = {
@@ -37,17 +29,13 @@ type RecordWithId = {
     Id : int
 }
 
-[<Aliases[|"Foo.Bar.RecordWithId"|]>]
 type RecordWithNewId = {
     Id : int
-    //[<DefaultValue("null")>]
     NewId: int option
 }
 
-[<Aliases[|"Foo.Bar.RecordWithId"|]>]
 type RecordWithNewField = {
     Id : int
-    [<DefaultValue("Hello")>]
     NewField: string
 }
 
@@ -59,6 +47,10 @@ type RecordWithOption = {
 type GenericRecord<'T> = {
     Value : 'T
 }
+type GenericRecord2<'T> = {
+    Value : 'T
+    NewValue : 'T
+}
 
 type BinaryTree =
     | Leaf of value:string
@@ -67,7 +59,6 @@ type BinaryTree =
 type PriceRecord = {
     Id : int
     Caption: string
-    [<Scale 3>]
     Price : decimal
 }
 
@@ -78,16 +69,12 @@ type OldRecord = {
 }
 
 
-[<Aliases[|"Foo.Bar.OldRecord"|]>]
 type NewRecord = {
     Id : int
-    [<Aliases [|"Title"; "Cap"|]>]
     Caption: string
-    [<DefaultValue "Not Yet Described">]
     Description : string
 }
 
-[<Aliases[|"Foo.Bar.TestState"|];DefaultValue("Blue")>]
 type NewTestState =
     | Red = 3
     | Yellow = 2
@@ -122,20 +109,24 @@ type Basket = list<LineItem>
 // Union evolution
 
 type UnionV1 =
-    | UnknownCase
-    | Case1
+    | UnknownCase of string
+    | Case1 of string
 
 type RecordV1 = {
-    [<DefaultValue """{"Foo.Bar.UnionV1.UnknownCase": {}}""">]
     Union : UnionV1
 }
 
 type UnionV2 =
-    | UnknownCase
-    | Case1
+    | UnknownCase of string
+    | Case1 of string
     | Case2
-    | Case3
+    | Case3 of string
 
 type RecordV2 = {
     Union : UnionV2
+}
+
+type RecordV3 = {
+    Union : UnionV2
+    Union2 : UnionV2
 }

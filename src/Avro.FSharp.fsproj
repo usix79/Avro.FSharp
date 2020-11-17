@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>Avro.FSharp</PackageId>
+    <Authors>usix</Authors>
+    <Title>Avro.FSharp</Title>
+    <Description>FSharp implementation of Apache Avro. The library generates an Avro schema by an F# type as well as serialize and deserialize an F# data in binary and json encodings.</Description>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <FileVersion>0.4.0.0</FileVersion>
+    <Version>0.4.0.0</Version>
+    <PackageTags>Avro;FSharp</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/usix79/Avro.FSharp</RepositoryUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageReleaseNotes>
+      # Release Notes
+      ## 0.4.0 - 2020-11-17
+      * Redesign for seamless integration with Fable.Avro
+      ## 0.3.0 - 2020-11-03
+      ! Breaking changes
+      * Added support for Json encoding
+      * Got rid of Apache.Avro dependency
+      ## 0.2.0 - 2020-10-21
+      * Migrate from `Avro.Schema` to own Schema implementation
+      ## 0.1.0 - 2020-10-19
+      * Initial release
+    </PackageReleaseNotes>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Utils.fs" />
+    <Compile Include="CustomRule.fs" />
+    <Compile Include="TypeRecord.fs" />
+    <Compile Include="Schema.fs" />
+    <Compile Include="Abstractions.fs" />
+    <Compile Include="BinaryImpl.fs" />
+    <Compile Include="JsonImpl.fs" />
+    <Compile Include="TypeFactory.fs" />
+    <Compile Include="InstanceImpl.fs" />
+    <Compile Include="Serde.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="4.7.2" />
+  </ItemGroup>
+</Project>

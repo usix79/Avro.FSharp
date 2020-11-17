@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Avro.FSharp", "src\Avro.FSharp\Avro.FSharp.fsproj", "{5D0D6911-90F1-4FA6-9FB7-A0621E155198}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Avro.FSharp", "src\Avro.FSharp.fsproj", "{5D0D6911-90F1-4FA6-9FB7-A0621E155198}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Avro.FSharp.Tests", "test\Avro.FSharp.Tests\Avro.FSharp.Tests.fsproj", "{AC549194-5DE4-4A09-AC43-D52F59066FA0}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Avro.FSharp.Tests", "test\Avro.FSharp.Tests.fsproj", "{AC549194-5DE4-4A09-AC43-D52F59066FA0}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{AF307022-B040-4A25-AE59-4887545728AA}"
 EndProject

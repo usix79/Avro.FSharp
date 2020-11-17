@@ -10,8 +10,11 @@ open Confluent.SchemaRegistry
 open Avro.FSharp
 
 type ExampleDeserializer<'T> (schemaRegistryClient: ISchemaRegistryClient) =
-    let factory = InstanceFactory(typeof<'T>, [])
-    let director = BinaryDirector()
+    let readerSchema =
+        match Schema.generate Schema.defaultOptions typeof<'T> with
+        | Ok schema -> schema
+        | Error err -> failwithf "Schema error: %A" err
+    let deserializer = Serde.binaryDeserializer Serde.defaultDeserializerOptions typeof<'T> readerSchema
 
     let schemasCache = ConcurrentDictionary<int, Schema>()
 
@@ -39,11 +42,8 @@ type ExampleDeserializer<'T> (schemaRegistryClient: ISchemaRegistryClient) =
                 use stream = new UnmanagedMemoryStream(&&data.GetPinnableReference(), int64 data.Length)
                 let writerSchemaId = readSchemaId stream
                 let writerSchema = schemasCache.GetOrAdd(writerSchemaId, getWriterSchema)
-                use reader = new BinaryReader(stream)
-                let builder = InstanceBuilder(factory)
-                director.Construct(reader, writerSchema, builder)
 
-                builder.Instance :?> 'T
+                deserializer writerSchema stream :?> 'T
             with
             | ex ->
                 printfn "EXCEPTION %A" ex
