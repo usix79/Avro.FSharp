@@ -38,19 +38,19 @@ type SchemaError =
 type SchemaOptions = {
     CustomRules: CustomRule list
     Annotations: String
-    StubDefaultValues: bool
     TreatDecimalAsDouble: bool
     TreatBigIntAsString: bool
-    TreatGuidAsString: bool }
+    TreatGuidAsString: bool
+    StubDefaultValues: bool}
 
 module Schema =
     let defaultOptions = {
             CustomRules = CustomRule.buidInRules
             Annotations = ""
-            StubDefaultValues = false
             TreatDecimalAsDouble = false
             TreatBigIntAsString = false
-            TreatGuidAsString = false}
+            TreatGuidAsString = false
+            StubDefaultValues = false}
 
     let private canonicalName ns (name:string) =
         match name.LastIndexOf "." with

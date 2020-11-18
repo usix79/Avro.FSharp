@@ -275,7 +275,7 @@ let binary2SimpleTest (case:SimpleCase) =
             | Error err -> failwithf "Schema error: %A" err
 
         let serializer = Serde.binarySerializer Serde.defaultSerializerOptions (case.InstanceType) schema
-        let deserializer = Serde.binaryDeserializer Serde.defaultDeserializerOptions (case.InstanceType) schema schema
+        let deserializer = Serde.binaryDeserializer Serde.defaultDeserializerOptions (case.InstanceType) schema
 
         use stream = new MemoryStream()
         serializer case.Instance stream
@@ -283,7 +283,7 @@ let binary2SimpleTest (case:SimpleCase) =
         let data = stream.ToArray()
 
         use stream = new MemoryStream(data)
-        let copy = deserializer stream
+        let copy = deserializer schema stream
 
         case.Comparer "Copy should be equal to original" case.Instance copy
     }
@@ -305,7 +305,7 @@ let binary2EvolutionTest (case:EvolutionCase) =
             match Schema.generate {options with Annotations = case.Annotations} (case.ExpectedInstance.GetType()) with
             | Ok schema -> schema
             | Error err -> failwithf "Schema error: %A" err
-        let deserializer = Serde.binaryDeserializer Serde.defaultDeserializerOptions (case.ExpectedInstance.GetType()) readerSchema writerSchema
+        let deserializer = Serde.binaryDeserializer Serde.defaultDeserializerOptions (case.ExpectedInstance.GetType()) readerSchema
 
         use stream = new MemoryStream()
         serializer case.Instance stream
@@ -313,7 +313,7 @@ let binary2EvolutionTest (case:EvolutionCase) =
         let data = stream.ToArray()
 
         use stream = new MemoryStream(data)
-        let copy = deserializer stream
+        let copy = deserializer writerSchema stream
 
         case.Comparer "Deserialized data should be equal to original" case.ExpectedInstance copy
     }
