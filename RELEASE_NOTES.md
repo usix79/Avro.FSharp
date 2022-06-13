@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.0.0 - 2022-06-13
+
+* ! Final Release
+* Implemented zig-zag encoding for integers
+* Fixed bug when serde close its stream
 ## 0.4.0 - 2020-11-18
 
 * Seamless compatibility with Fable.Avro
