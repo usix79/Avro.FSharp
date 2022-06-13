@@ -368,3 +368,36 @@ let leaveStreamOpenTests =
         let copy2 = deserializer schema stream :?> string
         Expect.equal "Deserialized message should be equal to the original" subject copy2
     }
+
+[<Tests>]
+let zigzagEncodingTests =
+    [
+    test "Zigzag encoding int32" {
+        let values = [0; 1; -1; 8; 255; 256; 12345; -4321; System.Int32.MaxValue; System.Int32.MinValue]
+        use stream = new MemoryStream()
+        for v in values do
+            stream.Seek(0L, SeekOrigin.Begin) |> ignore
+            let writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, true)
+            let reader = new BinaryReader(stream, System.Text.Encoding.UTF8, true)
+
+            BinaryHelpers.zigzagEncode writer (int64 v)
+            stream.Seek(0L, SeekOrigin.Begin) |> ignore
+            let copy = BinaryHelpers.zigzagDecode reader |> int32
+
+            Expect.equal "Deserialized number should be equal to the original" v copy
+    }
+    test "Zigzag encoding int64" {
+        let values = [0L; 1L; -1L; 8L; 255L; 256L; 12345L; -4321L; System.Int64.MaxValue; System.Int64.MinValue]
+        use stream = new MemoryStream()
+        for v in values do
+            stream.Seek(0L, SeekOrigin.Begin) |> ignore
+            let writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, true)
+            let reader = new BinaryReader(stream, System.Text.Encoding.UTF8, true)
+
+            BinaryHelpers.zigzagEncode writer v
+            stream.Seek(0L, SeekOrigin.Begin) |> ignore
+            let copy = BinaryHelpers.zigzagDecode reader
+
+            Expect.equal "Deserialized number should be equal to the original" v copy
+    }
+    ] |> testList "Zigzag encoding"

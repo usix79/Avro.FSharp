@@ -4,6 +4,41 @@ open System
 open System.IO
 open System.Numerics
 
+
+module BinaryHelpers =
+    let zigzagEncode (writer:BinaryWriter) (v:int64) =
+        let mutable chunk = 0UL
+        let mutable encoded = (v >>> 63) ^^^ (v <<< 1) |> uint64
+
+        let mutable stop = false
+        while not stop do
+            chunk <- encoded &&& 0x7fUL
+            encoded <- encoded >>> 7
+            if encoded <> 0UL then
+                chunk <- chunk ||| 0x80UL
+            writer.Write(byte chunk)
+            if encoded = 0UL then
+                stop <- true
+
+    let zigzagDecode (reader:BinaryReader) =
+        let mutable read = 0
+        let mutable shift = 0
+        let mutable result = 0UL
+        let mutable chunk = 0UL
+        let mutable result = 0UL
+        let mutable stop = false
+        while not stop do
+            if read = 10 then
+                raise (OverflowException "Encoded integer exceeds long bounds.")
+            read <- read + 1
+            chunk <- reader.ReadByte() |> uint64
+            result <- result ||| ((chunk &&& 0x7FUL) <<< shift)
+            shift <- shift + 7
+            if (chunk &&& 0x80UL) = 0UL then
+                stop <- true
+        let coerced = result |> int64
+        (-(coerced &&& 0x1L)) ^^^ ((coerced >>> 1) &&& 0x7FFFFFFFFFFFFFFFL)
+
 type BinaryBuilder(writer:BinaryWriter) =
 
     interface IAvroBuilder with
@@ -11,14 +46,14 @@ type BinaryBuilder(writer:BinaryWriter) =
         member _.Start() = ()
         member _.Null() = ()
         member _.Boolean(v: bool) = writer.Write(if v then 1uy else 0uy)
-        member _.Int(v: int) = writer.Write v
-        member _.Long(v: int64) = writer.Write v
+        member _.Int(v: int) = BinaryHelpers.zigzagEncode writer (v |> int64)
+        member _.Long(v: int64) = BinaryHelpers.zigzagEncode writer v
         member _.Float(v: float32) = writer.Write v
         member _.Double(v: float) = writer.Write v
         member this.String(v: string) = (this :> IAvroBuilder).Bytes(System.Text.Encoding.UTF8.GetBytes(v))
 
         member _.Bytes(v: byte array) =
-            writer.Write v.LongLength
+            BinaryHelpers.zigzagEncode writer v.LongLength
             writer.Write v
 
         member this.Decimal(v: decimal, schema: DecimalSchema) =
@@ -29,12 +64,12 @@ type BinaryBuilder(writer:BinaryWriter) =
 
         member _.Enum(idx:int, symbol: string) =  writer.Write idx
         member _.StartArray() =  ()
-        member _.StartArrayBlock(size: int64) =  writer.Write(size)
-        member _.EndArray() = writer.Write(0L)
+        member _.StartArrayBlock(size: int64) =  BinaryHelpers.zigzagEncode writer size
+        member _.EndArray() = BinaryHelpers.zigzagEncode writer 0L
         member _.StartMap() = ()
-        member _.StartMapBlock(size: int64) = writer.Write(size)
+        member _.StartMapBlock(size: int64) = BinaryHelpers.zigzagEncode writer size
         member this.Key(key: string) = (this :> IAvroBuilder).String(key)
-        member _.EndMap() = writer.Write(0L)
+        member _.EndMap() = BinaryHelpers.zigzagEncode writer 0L
         member _.StartRecord() = ()
         member _.Field(name: string) = true
         member _.EndRecord() = ()
@@ -88,19 +123,19 @@ module BinaryDirector =
             let rec write (builder:IAvroBuilder) = function
                 | Null -> builder.Null()
                 | Boolean -> (reader.ReadByte() <> 0uy) |> builder.Boolean
-                | Int -> reader.ReadInt32() |> builder.Int
-                | Long -> reader.ReadInt64() |> builder.Long
+                | Int -> BinaryHelpers.zigzagDecode reader |> int32 |> builder.Int
+                | Long -> BinaryHelpers.zigzagDecode reader |> builder.Long
                 | Float -> reader.ReadSingle() |> builder.Float
                 | Double -> reader.ReadDouble() |> builder.Double
                 | Bytes ->
-                    let size = reader.ReadInt64()
+                    let size = BinaryHelpers.zigzagDecode reader
                     reader.ReadBytes(int size) |> builder.Bytes
                 | String ->
-                    let size = reader.ReadInt64()
+                    let size = BinaryHelpers.zigzagDecode reader
                     let bytes = reader.ReadBytes(int size)
                     builder.String(System.Text.Encoding.UTF8.GetString(bytes))
                 | Decimal schema ->
-                    let size = reader.ReadInt64()
+                    let size = BinaryHelpers.zigzagDecode reader
                     let bytesValue = reader.ReadBytes(int size)
                     Array.Reverse(bytesValue)
                     let intValue = BigInteger(bytesValue)
@@ -118,10 +153,10 @@ module BinaryDirector =
                             builder.StartArrayBlock size
                             for _ in 1 .. int size do
                                 write builder schema.Items
-                            reader.ReadInt64() |> arrayFun
+                            BinaryHelpers.zigzagDecode reader |> arrayFun
 
                     builder.StartArray()
-                    reader.ReadInt64() |> arrayFun
+                    BinaryHelpers.zigzagDecode reader |> arrayFun
                     builder.EndArray()
                 | Map schema ->
                     let rec mapFun = function
@@ -129,14 +164,14 @@ module BinaryDirector =
                         | size ->
                             builder.StartMapBlock size
                             for _ in 1 .. int size do
-                                let size = reader.ReadInt64()
+                                let size = BinaryHelpers.zigzagDecode reader
                                 let bytes = reader.ReadBytes(int size)
                                 builder.Key(System.Text.Encoding.UTF8.GetString(bytes))
                                 write builder schema.Values
-                            reader.ReadInt64() |> mapFun
+                            BinaryHelpers.zigzagDecode reader |> mapFun
 
                     builder.StartMap()
-                    reader.ReadInt64() |> mapFun
+                    BinaryHelpers.zigzagDecode reader |> mapFun
                     builder.EndMap()
                 | Record schema ->
                     builder.StartRecord()
