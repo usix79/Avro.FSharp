@@ -22,7 +22,7 @@ let binarySerializer (options:SerializationOptions) (type':Type) (schema:Schema)
     let factory = TypeFactory(tr, schema, (fun _ _ _ -> null))
     let director = InstanceDirector.create options tr schema factory
     fun (instance:obj) (stream:Stream) ->
-        use writer = new BinaryWriter(stream, Text.Encoding.UTF8)
+        use writer = new BinaryWriter(stream, Text.Encoding.UTF8, true)
         let builder = BinaryBuilder(writer)
         director instance builder
 
@@ -64,6 +64,6 @@ let binaryDeserializer (options:DeserializationOptions) (type':Type) (readerSche
     let factory = TypeFactory(tr, readerSchema, createDefaultValue options)
     fun (writerSchema: Schema) (stream:Stream) ->
         let builder = InstanceBuilder(options, factory)
-        use reader = new BinaryReader(stream, Text.Encoding.UTF8)
+        use reader = new BinaryReader(stream, Text.Encoding.UTF8, true)
         director reader writerSchema builder
         builder.Instance

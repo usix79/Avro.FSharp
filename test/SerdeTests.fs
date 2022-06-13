@@ -342,3 +342,29 @@ let binary2EvolutionTests =
     evolutionCases
     |> List.map binary2EvolutionTest
     |> testList "Binary2Evolution"
+
+[<Tests>]
+let leaveStreamOpenTests =
+    test "Serde should leave its stream open" {
+        let subject = "Hello World!"
+        let subjectType = typeof<string>
+        let schema =
+            match Schema.generate Schema.defaultOptions subjectType with
+            | Ok schema -> schema
+            | Error err -> failwithf "Schema error: %A" err
+
+        let serializer = Serde.binarySerializer Serde.defaultSerializerOptions subjectType schema
+        let deserializer = Serde.binaryDeserializer Serde.defaultDeserializerOptions subjectType schema
+
+        use stream = new MemoryStream()
+        serializer subject stream
+        stream.Seek(0L, SeekOrigin.Begin) |> ignore
+        let copy = deserializer schema stream :?> string
+        Expect.equal "Deserialized message should be equal to the original" subject copy
+
+        stream.Seek(0L, SeekOrigin.Begin) |> ignore
+        serializer subject stream
+        stream.Seek(0L, SeekOrigin.Begin) |> ignore
+        let copy2 = deserializer schema stream :?> string
+        Expect.equal "Deserialized message should be equal to the original" subject copy2
+    }

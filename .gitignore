@@ -24,3 +24,5 @@ tools/
 
 .fake
 .ionide
+
+.DS_Store
