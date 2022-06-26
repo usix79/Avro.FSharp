@@ -1,5 +1,8 @@
 # Release Notes
 
+## 1.0.1 - 2022-06-26
+* Fixed dependencies
+
 ## 1.0.0 - 2022-06-13
 
 * ! Final Release
