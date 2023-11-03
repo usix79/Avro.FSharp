@@ -1,6 +1,11 @@
 # Release Notes
 
+## 1.1.0 - 2023-11-03
+
+* Fixed a bug where JSON schemas incorrectly parsed null without quotes in union types, now aligning with Avro specifications
+
 ## 1.0.1 - 2022-06-26
+
 * Fixed dependencies
 
 ## 1.0.0 - 2022-06-13
@@ -8,6 +13,7 @@
 * ! Final Release
 * Implemented zig-zag encoding for integers
 * Fixed bug when serde close its stream
+
 ## 0.4.0 - 2020-11-18
 
 * Seamless compatibility with Fable.Avro

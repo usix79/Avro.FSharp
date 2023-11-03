@@ -27,12 +27,15 @@ val generate:
 ```
 
 To read a schema from json string, use Schema.ofString:
+
 ```fsharp
 val ofString:
    jsonString: string
             -> Schema
 ```
+
 To write schema, use Schema.toString:
+
 ```fsharp
 val toString:
    schema: Schema
@@ -57,6 +60,7 @@ val toString:
 | `byte array` | `bytes` |
 
 Examples:
+
 * `generate Schema.defaultOptions typeof<string>` generates: `{"type": "string"}`
 * `generate Schema.defaultOptions typeof<bool>` generates: `{"type": "boolean"}`
 * `generate Schema.defaultOptions typeof<int>` generates: `{"type": "int"}`
@@ -68,6 +72,7 @@ Examples:
 ### Arrays
 
 Following F# types are mapped to avro's array:
+
 * `'T list`
 * `'T array` (if `'T` is not `byte`)
 * `ResizeArray<'T>` (`System.Collection.Generic.List<'T>`)
@@ -76,6 +81,7 @@ Following F# types are mapped to avro's array:
 * `'T Seq` (`IEnumerable<'T>`)
 
 Examples:
+
 * `generate Schema.defaultOptions typeof<string list>` generates: `{"type": "array", "values": "string"}`
 * `generate Schema.defaultOptions typeof<int array>` generates: `{"type": "array", "values": "int"}`
 * `generate Schema.defaultOptions typeof<List<bool>>` generates: `{"type": "array", "values": "boolean"}`
@@ -83,13 +89,14 @@ Examples:
 ### Maps
 
 Following F# types are mapped to avro's map:
+
 * `Map<string,'TValue>`
 * `Dictionary<string,'TValue>`
 
 Examples:
+
 * `generate Schema.defaultOptions typeof<Map<string,string>>` generates: `{"type": "map", "values": "string"}`
 * `generate Schema.defaultOptions typeof<Dictionary<string, int>>` generates: `{"type": "map", "values": "int"}`
-
 
 ### Enums
 
@@ -105,7 +112,9 @@ type TestState =
 
 generate Schema.defaultOptions typeof<TestState>
 ```
+
 generated schema:
+
 ```json
 {"type": "enum", "name": "TestState", "symbols": ["Green", "Yellow", "Red"]}
 ```
@@ -126,7 +135,9 @@ type SimpleRecord = {
 
 generate Schema.defaultOptions typeof<SimpleRecord>
 ```
+
 generated schema:
+
 ```json
 {
     "type": "record",
@@ -144,6 +155,7 @@ A tuple is mapped to Avro's `record` with fields `Item1`, `Item2` and so on.
 Example:
 
 `generate Schema.defaultOptions typeof<int*string>>` generates
+
 ```json
 {
     "type": "record",
@@ -156,6 +168,7 @@ Example:
 ```
 
 Generic records are also allowed:
+
 ```fsharp
 type GenericRecord<'T> = {
     Value : 'T
@@ -163,7 +176,9 @@ type GenericRecord<'T> = {
 
 generate Schema.defaultOptions typeof<GenericRecord<string>>
 ```
+
 generated schema:
+
 ```json
 {
     "type":"record",
@@ -171,6 +186,7 @@ generated schema:
     "fields":[{"name":"Value","type":"string"}]
 }
 ```
+
 ### Unions
 
 F# Discriminated Union is mapped to Avro's `union` of records, generated from the union's cases
@@ -184,7 +200,9 @@ type BinaryTree =
 
 generate Schema.defaultOptions typeof<BinaryTree>
 ```
+
 generated schema:
+
 ```json
 {
     "type":[
@@ -231,7 +249,8 @@ Following types are handled in special way
 
 NOT YET SUPPORTED
 
-## Annotations
+### Annotations
+
 Some schema's attributes can not be evolved from F# type (default values and aliases).
 Additional annotation is used for the purpose. Here is example of the annotation json.
 
@@ -266,7 +285,7 @@ Additional annotation is used for the purpose. Here is example of the annotation
 
 You don't need to annotate all enums, records and fields. Annotate only those schemas which should be enriched with additional attributes. Since tuples and DU cases are mapped to a record, you may define attibutes for them as well. Remember, that tupel's field name is like `Item1, Item2, Item3 ...`. DU case name is composed from name of the DU and name of the case.
 
-## Names
+### Names
 
 According to avro specification, only `[A-Za-z0-9_]` symbols are allowed in the name attributes.
 Name of an enum is constructed from namespace and type's name.
@@ -274,7 +293,7 @@ Name of a record also contains description of the generic type arguments.
 
 Rule of the generation of the records name is describer is the following table:
 
-| Precicate | Rule |
+| Predicate | Rule |
 |------|---------|
 | Is kind of array | `Array_Of_{ItemTypeName}` |
 | Is kind of map | `Map_Of_{ValueTypeName}` |
@@ -286,13 +305,15 @@ Rule of the generation of the records name is describer is the following table:
 | `System.RestName` | `RestName` |
 
 Examples of record names:
+
 * `Result_Of_Int64_And_String.Ok`
 * `Tuple_Of_Int32_And_String`
 * `Foo.Bar.GenericRecord_Of_Nullable_String`
 
-# Serde
+## Serde
 
 To create serializer use:
+
 ```fsharp
 record SerializationOptions
   val CustomRules: list<CustomRule>
@@ -328,6 +349,7 @@ val Serde.jsonDeserializer:
    schema : Schema
          -> Stream -> obj
 ```
+
 Here is basic example:
 
 ```fsharp
@@ -366,12 +388,11 @@ Here is basic example:
     Expect.equal "copy shoud be equal to original" orig copy
 ```
 
-
-# Evolution issues
+## Evolution issues
 
 It is very important in microservices architecture, that changes in the schema do not break work of a service. The library aimed to make schemas evolution compatibility as simple as possible.
 
-## Stub default values
+### Stub default values
 
 Setting option `SchemaOptions.StubDefaultValues` enable adding default value to each field's schema and enum's schema.
 
@@ -401,11 +422,12 @@ If deserializer can not find field's value it looks default value in the annotat
 
 Deserializing of the Enums is performed by the same algorithm.
 
-## Forward compatibility for DU
+### Forward compatibility for DU
 
 According to Avro standard, adding a new case at a union is a non forward compatible change ([see](https://avro.apache.org/docs/current/spec.html#Schema+Resolution)).
 
 Let's pretend that first version of our domain looks like:
+
 ```fsharp
 type DomainUnion =
     | Case1
@@ -413,6 +435,7 @@ type DomainUnion =
 ```
 
 Eventually, version 2 is evolved:
+
 ```fsharp
 type DomainUnion =
     | Case1
@@ -431,6 +454,7 @@ type DomainUnion =
 ```
 
 And serializer's domain:
+
 ```fsharp
 type DomainUnion =
     | UnknownCase
@@ -441,9 +465,10 @@ type DomainUnion =
 
 `Case3` will be deserialized to `UnknownCase` (first case of the `DomainUnion`). This is true for any occasion of DU in deserialized type (whenever it is a record's field, or item in an array, or value in a map). For example, array `[Case1, Case3, Case2, Case1]` will be deserialized to `[Case1, UnknownCase, UnknownCase, Case1]`. Set `DeserializationOptions.EvolutionTolerantMode=false` if you don't want the behaviour.
 
-# Custom Rules
+## Custom Rules
 
 It is possible to customize processing of a particular type. In that case `CustomRule` should be created.
+
 ```fsharp
 record CustomRule
   val InstanceType: Type                // particular type
@@ -467,7 +492,8 @@ Example of the implementation of the `CustomRule`:
 
 List with custom rules is passed to schema generator, serializer and deserializer as part of its options
 
-# Examples
+## Examples
+
 More examples of complex types and corresponging schemas is available in the [SchemaTests.fs](https://github.com/usix79/Avro.FSharp/blob/main/test/SchemaTests.fs).
 
 See [CustomRule.fs](https://github.com/usix79/Avro.FSharp/blob/main/src/CustomRule.fs) for details of the implementation of the custom rules.

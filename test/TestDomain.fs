@@ -6,74 +6,47 @@ type TestState =
     | Yellow = 1
     | Green = 0
 
-type SimpleRecord = {
-    Id : int
-    Name : string
-    Version : int64
-}
+type SimpleRecord =
+    { Id: int
+      Name: string
+      Version: int64 }
 
-type ParentRecord = {
-    Chield1 : SimpleRecord
-    Chield2 : SimpleRecord
-}
+type ParentRecord =
+    { Chield1: SimpleRecord
+      Chield2: SimpleRecord }
 
 type Price = Price of decimal
 
-type ItemRecord = {
-    Id : int
-    Name : string
-    Price : Price
-}
+type ItemRecord = { Id: int; Name: string; Price: Price }
 
-type RecordWithId = {
-    Id : int
-}
+type RecordWithId = { Id: int }
 
-type RecordWithNewId = {
-    Id : int
-    NewId: int option
-}
+type RecordWithNewId = { Id: int; NewId: int option }
 
-type RecordWithNewField = {
-    Id : int
-    NewField: string
-}
+type RecordWithNewField = { Id: int; NewField: string }
 
-type RecordWithOption = {
-    Id : int
-    Id2 : int option
-}
+type RecordWithOption = { Id: int; Id2: int option }
 
-type GenericRecord<'T> = {
-    Value : 'T
-}
-type GenericRecord2<'T> = {
-    Value : 'T
-    NewValue : 'T
-}
+type GenericRecord<'T> = { Value: 'T }
+type GenericRecord2<'T> = { Value: 'T; NewValue: 'T }
 
 type BinaryTree =
-    | Leaf of value:string
+    | Leaf of value: string
     | Node of left: BinaryTree * right: BinaryTree
 
-type PriceRecord = {
-    Id : int
-    Caption: string
-    Price : decimal
-}
+type PriceRecord =
+    { Id: int
+      Caption: string
+      Price: decimal }
 
 
-type OldRecord = {
-    Id : int
-    Title: string
-}
+type OldRecord = { Id: int; Title: string }
 
 
-type NewRecord = {
-    Id : int
-    Caption: string
-    Description : string
-}
+type NewRecord =
+    { Id: int
+      Caption: string
+      Description: string }
 
 type NewTestState =
     | Red = 3
@@ -83,10 +56,13 @@ type NewTestState =
 // Snippet link: http://fssnip.net/kW
 // Authors: Tomas Petricek & Phil Trelford
 
-type [<Measure>] GBP
-type [<Measure>] Q
+[<Measure>]
+type GBP
 
-type UnitPrice = decimal<GBP/Q>
+[<Measure>]
+type Q
+
+type UnitPrice = decimal<GBP / Q>
 type Amount = decimal<GBP>
 type Name = string
 type Code = string
@@ -95,14 +71,14 @@ type Quantity = decimal<Q>
 type Product = Code * Name * UnitPrice
 
 type Tender =
-  | Cash
-  | Card of string
-  | Voucher of Code
+    | Cash
+    | Card of string
+    | Voucher of Code
 
 type LineItem =
-  | SaleItem of Product * Quantity
-  | TenderItem of Tender * Amount
-  | CancelItem of int
+    | SaleItem of Product * Quantity
+    | TenderItem of Tender * Amount
+    | CancelItem of int
 
 type Basket = list<LineItem>
 
@@ -112,9 +88,7 @@ type UnionV1 =
     | UnknownCase of string
     | Case1 of string
 
-type RecordV1 = {
-    Union : UnionV1
-}
+type RecordV1 = { Union: UnionV1 }
 
 type UnionV2 =
     | UnknownCase of string
@@ -122,11 +96,6 @@ type UnionV2 =
     | Case2
     | Case3 of string
 
-type RecordV2 = {
-    Union : UnionV2
-}
+type RecordV2 = { Union: UnionV2 }
 
-type RecordV3 = {
-    Union : UnionV2
-    Union2 : UnionV2
-}
+type RecordV3 = { Union: UnionV2; Union2: UnionV2 }
