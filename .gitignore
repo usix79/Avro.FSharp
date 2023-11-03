@@ -26,3 +26,4 @@ tools/
 .ionide
 
 .DS_Store
+nupkg/
